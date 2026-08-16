@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ClientApiError } from "@/lib/client";
-import { Button, Input, Select, Alert, Badge } from "@/components/ui";
+import { Button, Input, Select, Alert, Badge, PageHeader, EmptyState } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
+import { IconLeads } from "@/components/icons";
 
 interface Lead {
   id: string;
@@ -82,10 +83,7 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Follow Ups</h1>
-        <p className="mt-1 text-ink-soft">Track leads and let DONE write personal follow-ups.</p>
-      </header>
+      <PageHeader eyebrow="Follow ups" title="Who needs attention?" subtitle="Track leads and let DONE write the personal follow-up at the right moment." />
 
       {error ? <Alert>{error}</Alert> : null}
 
@@ -101,7 +99,11 @@ export default function LeadsPage() {
       {loading ? (
         <div className="card p-8 text-center text-ink-soft">Loading…</div>
       ) : leads.length === 0 ? (
-        <div className="card p-8 text-center text-ink-soft">No leads yet. Add your first one above.</div>
+        <EmptyState
+          icon={<IconLeads className="h-6 w-6" />}
+          title="Nobody to follow up with."
+          body="Add your first lead above and DONE will tell you exactly when and what to send."
+        />
       ) : (
         <div className="space-y-3">
           {leads.map((lead) => (

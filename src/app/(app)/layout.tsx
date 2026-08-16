@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { requireWorkspaceContext } from "@/lib/workspace/context";
-import { AppNav } from "@/components/app-nav";
+import { AppChrome } from "@/components/app/app-chrome";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -12,11 +12,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!ctx.workspace.onboardedAt) redirect("/onboarding");
 
   return (
-    <div className="min-h-screen lg:flex">
-      <AppNav workspaceName={ctx.workspace.name} isAdmin={user.isPlatformAdmin} />
-      <main className="flex-1 bg-surface">
-        <div className="mx-auto max-w-5xl px-5 py-6 sm:px-8 sm:py-10">{children}</div>
-      </main>
-    </div>
+    <AppChrome
+      workspaceName={ctx.workspace.name}
+      userName={user.name || ""}
+      userEmail={user.email}
+      isAdmin={user.isPlatformAdmin}
+    >
+      {children}
+    </AppChrome>
   );
 }

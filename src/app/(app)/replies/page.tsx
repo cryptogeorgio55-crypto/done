@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api, ClientApiError } from "@/lib/client";
-import { Button, Textarea, Select, Alert, Field } from "@/components/ui";
+import { Button, Textarea, Select, Alert, Field, PageHeader } from "@/components/ui";
 import { CopyButton } from "@/components/copy-button";
 import { BoltIcon } from "@/components/brand";
 
@@ -47,10 +47,7 @@ export default function RepliesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Replies</h1>
-        <p className="mt-1 text-ink-soft">Paste a customer message and DONE writes the perfect reply.</p>
-      </header>
+      <PageHeader eyebrow="Replies" title="Paste it. I'll answer." subtitle="Drop in a customer message and DONE writes the reply — in your voice, no prompting." />
 
       <div className="card space-y-4 p-6">
         {error ? <Alert>{error}</Alert> : null}
