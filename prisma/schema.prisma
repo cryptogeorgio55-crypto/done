@@ -1,0 +1,501 @@
+// DONE — Prisma schema
+// Local dev uses SQLite for zero-setup. For production, change `provider` to
+// "postgresql" and update DATABASE_URL. Fields use String for enum-like values
+// and Json for structured data to stay portable across both engines.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity & tenancy
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  emailVerified  DateTime?
+  name           String?
+  avatarUrl      String?
+  passwordHash   String
+  isPlatformAdmin Boolean  @default(false)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  memberships       Membership[]
+  sessions          Session[]
+  verificationTokens VerificationToken[]
+  auditLogs         AuditLog[] @relation("AuditActor")
+  ownedWorkspaces   Workspace[] @relation("WorkspaceOwner")
+
+  @@index([email])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  tokenHash    String   @unique // sha-256 of the raw session token (never store raw)
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model VerificationToken {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  purpose    String   // "email_verify" | "password_reset"
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  ownerId     String
+  timezone    String   @default("UTC")
+  currency    String   @default("USD")
+  locale      String   @default("en")
+  industryKey String?  // references an industry preset key
+  onboardedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  owner            User               @relation("WorkspaceOwner", fields: [ownerId], references: [id])
+  memberships      Membership[]
+  businessProfile  BusinessProfile?
+  products         ProductService[]
+  personas         CustomerPersona[]
+  brandProfile     BrandProfile?
+  goals            BusinessGoal[]
+  policies         BusinessPolicy[]
+  aiGenerations    AiGeneration[]
+  lazyRuns         LazyRun[]
+  campaigns        Campaign[]
+  contentItems     ContentItem[]
+  leads            Lead[]
+  conversations    Conversation[]
+  usageRecords     UsageRecord[]
+  subscription     Subscription?
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  @@index([ownerId])
+  @@index([slug])
+}
+
+model Membership {
+  id          String   @id @default(uuid())
+  userId      String
+  workspaceId String
+  role        String   @default("owner") // owner | admin | member
+  invitedById String?
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Business Brain
+// ---------------------------------------------------------------------------
+
+model BusinessProfile {
+  id          String   @id @default(uuid())
+  workspaceId String   @unique
+  businessName String
+  industryKey String?
+  description String?
+  location    String?
+  website     String?
+  instagram   String?
+  phone       String?
+  email       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model ProductService {
+  id           String   @id @default(uuid())
+  workspaceId  String
+  name         String
+  description  String?
+  price        String?  // stored as text to support ranges/currency ("$25", "from $40")
+  category     String?
+  benefits     String?
+  targetCustomer String?
+  availability String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model CustomerPersona {
+  id          String   @id @default(uuid())
+  workspaceId String
+  label       String
+  ageGroups   String?
+  interests   String?
+  locations   String?
+  painPoints  String?
+  motivations String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model BrandProfile {
+  id           String   @id @default(uuid())
+  workspaceId  String   @unique
+  toneOfVoice  String?
+  personality  String?
+  vocabulary   String?
+  wordsToAvoid String?
+  colors       String?
+  usps         String?  // unique selling propositions
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model BusinessGoal {
+  id          String   @id @default(uuid())
+  workspaceId String
+  key         String   // bookings | sales | awareness | repeat | leads | engagement
+  label       String
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model BusinessPolicy {
+  id          String   @id @default(uuid())
+  workspaceId String
+  kind        String   // delivery | cancellation | refund | booking | payment | hours
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+// ---------------------------------------------------------------------------
+// AI system
+// ---------------------------------------------------------------------------
+
+model AiGeneration {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String?
+  kind        String   // content | campaign | reply | followup | plan | offer | ad | lazy
+  provider    String
+  model       String
+  status      String   @default("succeeded") // succeeded | failed
+  inputSummary String?
+  contextRefs Json?    // ids of business-brain/history items used to build context
+  output      Json     // structured, validated output
+  edited      Boolean  @default(false)
+  campaignId  String?
+  contentItemId String?
+  lazyRunId   String?
+  tokensIn    Int?
+  tokensOut   Int?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, kind])
+  @@index([workspaceId, createdAt])
+}
+
+model LazyRun {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String?
+  idempotencyKey String? // prevents duplicate runs
+  status      String   @default("completed") // planning | generating | completed | failed
+  plan        Json?    // safe decision summary (no raw chain-of-thought)
+  resultKind  String?  // what DONE decided to create
+  campaignId  String?
+  message     String?  // the friendly "I noticed..." line
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, idempotencyKey])
+  @@index([workspaceId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Campaigns & content
+// ---------------------------------------------------------------------------
+
+model Campaign {
+  id          String   @id @default(uuid())
+  workspaceId String
+  title       String
+  objective   String?
+  audience    String?
+  offer       String?
+  status      String   @default("draft") // draft | active | archived
+  source      String   @default("manual") // manual | lazy | get_customers
+  summary     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assets    CampaignAsset[]
+
+  @@index([workspaceId, status])
+}
+
+model CampaignAsset {
+  id         String   @id @default(uuid())
+  campaignId String
+  kind       String   // instagram_post | caption | story | reel | whatsapp | followup | cta | ad | checklist
+  title      String?
+  body       String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+}
+
+model ContentItem {
+  id          String   @id @default(uuid())
+  workspaceId String
+  type        String   // instagram_post | caption | reel_idea | reel_script | story | ...
+  title       String?
+  body        String
+  status      String   @default("draft") // draft | approved | scheduled | published | archived
+  scheduledFor DateTime?
+  campaignId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, scheduledFor])
+}
+
+// ---------------------------------------------------------------------------
+// Leads, follow-ups, conversations
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id            String   @id @default(uuid())
+  workspaceId   String
+  name          String
+  email         String?
+  phone         String?
+  source        String?
+  stage         String   @default("new") // new | contacted | interested | followup | won | lost
+  notes         String?
+  estimatedValue String?
+  tags          Json?
+  lastContactAt DateTime?
+  nextFollowUpAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  leadNotes LeadNote[]
+
+  @@index([workspaceId, stage])
+  @@index([workspaceId, nextFollowUpAt])
+}
+
+model LeadNote {
+  id        String   @id @default(uuid())
+  leadId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model Conversation {
+  id          String   @id @default(uuid())
+  workspaceId String
+  title       String?
+  channel     String?  // whatsapp | instagram | email | other
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages  Message[]
+
+  @@index([workspaceId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  role           String   // customer | business
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+// ---------------------------------------------------------------------------
+// Billing, plans, usage, entitlements
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id            String   @id @default(uuid())
+  key           String   @unique // free | starter | pro
+  name          String
+  priceMonthly  Int      @default(0) // in minor units (cents)
+  priceYearly   Int      @default(0)
+  stripePriceIdMonthly String?
+  stripePriceIdYearly  String?
+  entitlements  Json     // { aiGenerationsPerMonth, leads, teamMembers, ... }
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String   @id @default(uuid())
+  workspaceId        String   @unique
+  planId             String
+  status             String   @default("trialing") // trialing | active | past_due | canceled | incomplete
+  billingInterval    String   @default("monthly")
+  stripeCustomerId   String?
+  stripeSubscriptionId String?
+  currentPeriodEnd   DateTime?
+  trialEndsAt        DateTime?
+  cancelAtPeriodEnd  Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  plan      Plan      @relation(fields: [planId], references: [id])
+
+  @@index([planId])
+}
+
+model UsageRecord {
+  id          String   @id @default(uuid())
+  workspaceId String
+  metric      String   // ai_generation | lazy_run | campaign | content
+  period      String   // YYYY-MM bucket for monthly limits
+  count       Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, metric, period])
+  @@index([workspaceId, period])
+}
+
+// ---------------------------------------------------------------------------
+// Platform: notifications, audit, flags, settings
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id          String   @id @default(uuid())
+  workspaceId String
+  userId      String?
+  kind        String
+  title       String
+  body        String?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, readAt])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  workspaceId String?
+  actorId     String?
+  action      String
+  targetType  String?
+  targetId    String?
+  metadata    Json?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  actor     User?      @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([action])
+}
+
+model FeatureFlag {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  description String?
+  enabled     Boolean  @default(false)
+  workspaceIds Json?   // optional allowlist of workspace ids
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

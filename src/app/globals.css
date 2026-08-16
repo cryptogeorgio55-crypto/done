@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b1220;
+  --color-ink-soft: #334155;
+  --color-muted: #64748b;
+  --color-line: #e6ebf2;
+  --color-canvas: #ffffff;
+  --color-surface: #f7f9fc;
+  --color-brand: #2563eb;
+  --color-brand-600: #1d4ed8;
+  --color-cyan: #06b6d4;
+  --radius-xl: 1.25rem;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Ambient brand glow used on hero / dashboard backgrounds. */
+.bg-aurora {
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(37, 99, 235, 0.1), transparent 60%),
+    radial-gradient(50rem 40rem at 100% 0%, rgba(6, 182, 212, 0.1), transparent 55%),
+    var(--color-canvas);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-line);
+}
+
+.card {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -16px rgba(15, 23, 42, 0.15);
+}
+
+/* Focus ring for accessibility. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* I'M LAZY button press animation (clean, deliberate). */
+@keyframes lazy-press {
+  0% { transform: scale(1); }
+  45% { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+.lazy-pressing {
+  animation: lazy-press 320ms ease-out;
+}

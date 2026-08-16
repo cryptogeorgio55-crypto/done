@@ -1,0 +1,40 @@
+# Production-style compose: PostgreSQL + the DONE app.
+# Before using, change prisma/schema.prisma datasource provider to "postgresql".
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: done
+      POSTGRES_PASSWORD: change-me-in-production
+      POSTGRES_DB: done
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U done"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_URL: http://localhost:3000
+      DATABASE_URL: postgresql://done:change-me-in-production@db:5432/done?schema=public
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in your environment}
+      # Optional AI providers (leave empty for offline mode):
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:
