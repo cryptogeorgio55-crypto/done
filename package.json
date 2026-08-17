@@ -14,8 +14,13 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
+    "db:deploy": "prisma migrate deploy",
     "setup": "node scripts/setup.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "admin:create": "node scripts/create-admin.mjs",
+    "production:check": "node scripts/production-check.mjs",
+    "production:test-connections": "node scripts/test-connections.mjs",
+    "verify": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@prisma/client": "^6.3.0",

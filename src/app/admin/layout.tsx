@@ -17,7 +17,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Wordmark href="/admin" />
             <span className="rounded-full bg-ink px-2 py-0.5 text-xs font-medium text-white">ADMIN</span>
           </div>
-          <Link href="/dashboard" className="text-sm text-ink-soft hover:text-ink">← Back to app</Link>
+          <div className="flex items-center gap-4">
+            <Link href="/admin/system" className="text-sm text-ink-soft hover:text-ink">System</Link>
+            <Link href="/dashboard" className="text-sm text-ink-soft hover:text-ink">← Back to app</Link>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>

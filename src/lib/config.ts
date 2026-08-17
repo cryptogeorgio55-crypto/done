@@ -56,6 +56,57 @@ export function googleOAuthConfigured(): boolean {
   return Boolean(config.google.clientId && config.google.clientSecret);
 }
 
+/** True when a real (non-offline) AI provider is configured. */
+export function aiConfigured(): boolean {
+  return resolveAiProvider() !== "offline";
+}
+
+/** True when a dedicated encryption key (not the session-secret fallback) is set. */
+export function encryptionKeyConfigured(): boolean {
+  return Boolean(config.encryptionKey);
+}
+
+export interface SubsystemStatus {
+  key: string;
+  label: string;
+  /** "ok" = configured/healthy, "missing" = not configured, "n/a" = not part of this build. */
+  state: "ok" | "missing" | "n/a";
+  required: "prod" | "optional" | "feature";
+  detail: string;
+}
+
+/**
+ * Single source of truth for "is this subsystem configured?" — consumed by the
+ * admin System page and the startup summary. NEVER returns secret values.
+ */
+export function configStatus(): SubsystemStatus[] {
+  const prod = config.isProd;
+  const localhost = /localhost|127\.0\.0\.1/.test(config.appUrl);
+  const https = config.appUrl.startsWith("https://");
+  return [
+    { key: "app_url", label: "Application URL", state: config.appUrl && !(prod && localhost) ? "ok" : "missing", required: "prod",
+      detail: prod && localhost ? "APP_URL points at localhost in production" : config.appUrl },
+    { key: "https", label: "HTTPS", state: !prod || https ? "ok" : "missing", required: "prod",
+      detail: https ? "enabled" : prod ? "APP_URL is not https://" : "not required in development" },
+    { key: "database", label: "Database", state: process.env.DATABASE_URL ? "ok" : "missing", required: "prod",
+      detail: process.env.DATABASE_URL ? "DATABASE_URL set" : "DATABASE_URL missing" },
+    { key: "session", label: "Session secret", state: config.sessionSecret && !config.sessionSecret.startsWith("insecure-") ? "ok" : "missing", required: "prod",
+      detail: config.sessionSecret.startsWith("insecure-") ? "using insecure dev default" : "set" },
+    { key: "encryption", label: "Token encryption key", state: encryptionKeyConfigured() ? "ok" : prod ? "missing" : "n/a", required: "prod",
+      detail: encryptionKeyConfigured() ? "dedicated key set" : "falls back to SESSION_SECRET (set ENCRYPTION_KEY for prod)" },
+    { key: "ai", label: "AI provider", state: aiConfigured() ? "ok" : "missing", required: "prod",
+      detail: aiConfigured() ? `${resolveAiProvider()} configured` : "no key — running in offline fallback" },
+    { key: "google", label: "Google OAuth (Gmail/Calendar)", state: googleOAuthConfigured() ? "ok" : "missing", required: "prod",
+      detail: googleOAuthConfigured() ? "client id + secret set" : "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing" },
+    { key: "admin", label: "Platform admin email", state: config.platformAdminEmail ? "ok" : "missing", required: "optional",
+      detail: config.platformAdminEmail ? "set" : "optional bootstrap helper" },
+    { key: "billing", label: "Billing (payments)", state: "n/a", required: "feature",
+      detail: "plans & entitlements are enforced; Stripe payment wiring is not part of this build" },
+    { key: "email", label: "Transactional email", state: "n/a", required: "feature",
+      detail: "not wired in this build (customer email flows use the connected Gmail account)" },
+  ];
+}
+
 /** Which AI provider will actually be used, given current configuration. */
 export function resolveAiProvider(): "anthropic" | "openai" | "ollama" | "offline" {
   const forced = config.ai.forcedProvider;
