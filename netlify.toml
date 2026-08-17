@@ -1,0 +1,12 @@
+# Netlify configuration for DONE.
+# Builds against the Postgres prod schema (see scripts/make-prod-schema.mjs).
+[build]
+  command = "npm run build:netlify"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Official Next.js runtime for Netlify (SSR, API routes, image optimization).
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

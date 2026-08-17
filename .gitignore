@@ -34,3 +34,6 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# Generated at prod build time (see scripts/make-prod-schema.mjs)
+prisma/schema.prod.prisma

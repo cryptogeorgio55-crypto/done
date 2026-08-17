@@ -15,6 +15,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:deploy": "prisma migrate deploy",
+    "db:push:prod": "node scripts/make-prod-schema.mjs && prisma db push --schema=prisma/schema.prod.prisma",
+    "build:netlify": "node scripts/make-prod-schema.mjs && prisma generate --schema=prisma/schema.prod.prisma && next build",
     "setup": "node scripts/setup.mjs",
     "test": "vitest run",
     "admin:create": "node scripts/create-admin.mjs",
