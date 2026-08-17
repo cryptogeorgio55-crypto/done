@@ -9,10 +9,13 @@ import { CommandPalette } from "@/components/app/command-palette";
 import {
   IconToday, IconCustomers, IconContent, IconReplies, IconLeads, IconBrain,
   IconAnalytics, IconSettings, IconSearch, IconSparkle, IconLogout,
-  IconChevronsLeft, IconX,
+  IconChevronsLeft, IconX, IconAutopilot, IconInbox, IconApprovals, IconPlug,
 } from "@/components/icons";
 
 const PRIMARY = [
+  { href: "/autopilot", label: "Autopilot", Icon: IconAutopilot },
+  { href: "/inbox", label: "Inbox", Icon: IconInbox },
+  { href: "/approvals", label: "Approvals", Icon: IconApprovals },
   { href: "/dashboard", label: "Today", Icon: IconToday },
   { href: "/campaigns", label: "Get Customers", Icon: IconCustomers },
   { href: "/content", label: "Content", Icon: IconContent },
@@ -21,6 +24,8 @@ const PRIMARY = [
   { href: "/brain", label: "Business Brain", Icon: IconBrain },
 ];
 const SECONDARY = [
+  { href: "/connections", label: "Connections", Icon: IconPlug },
+  { href: "/automations", label: "Automations", Icon: IconAutopilot },
   { href: "/analytics", label: "Analytics", Icon: IconAnalytics },
   { href: "/settings", label: "Settings", Icon: IconSettings },
 ];
@@ -175,10 +180,11 @@ export function AppChrome({
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/90 backdrop-blur-xl lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2 py-2">
           {MOBILE_TABS.slice(0, 2).map((t) => <MobileTab key={t.href} {...t} active={isActive(t.href)} />)}
-          <div className="flex justify-center">
-            <Link href="/dashboard?lazy=1" aria-label="I'M LAZY" className="-mt-6 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand to-cyan text-white shadow-glow active:scale-95 transition-transform">
+          <div className="flex flex-col items-center">
+            <button onClick={() => setPaletteOpen(true)} aria-label="What should I get DONE?" className="-mt-6 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand to-cyan text-white shadow-glow active:scale-95 transition-transform">
               <IconSparkle className="h-6 w-6" />
-            </Link>
+            </button>
+            <span className="mt-0.5 text-[10px] font-semibold text-brand">DONE</span>
           </div>
           <MobileTab {...MOBILE_TABS[2]} active={isActive(MOBILE_TABS[2].href)} />
           <button onClick={() => setSheetOpen(true)} className="flex flex-col items-center gap-1 py-1 text-muted">

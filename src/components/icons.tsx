@@ -57,3 +57,20 @@ export const IconBolt = (p: P) => (
   <svg viewBox="0 0 24 24" fill="currentColor" {...props(p)}><path d="M13 2 4.5 13.2c-.4.5 0 1.3.7 1.3H11l-1 8 8.8-11.5c.4-.5 0-1.3-.7-1.3H12l1-8Z" /></svg>
 );
 function props(p: P) { return p; }
+
+export const IconInbox = (p: P) => (
+  <svg {...base(p)}><path d="M4 13l2.5-7A2 2 0 0 1 8.4 4.7h7.2a2 2 0 0 1 1.9 1.3L20 13" /><path d="M4 13h4a2 2 0 0 1 2 2 2 2 0 0 0 4 0 2 2 0 0 1 2-2h4v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /></svg>
+);
+export const IconApprovals = (p: P) => (
+  <svg {...base(p)}><path d="M9 11l2.5 2.5L16 8" /><rect x="4" y="4" width="16" height="16" rx="3" /></svg>
+);
+export const IconAutopilot = (p: P) => (
+  <svg {...base(p)}><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none" /><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" /></svg>
+);
+export const IconPlug = (p: P) => (
+  <svg {...base(p)}><path d="M9 3v5M15 3v5" /><path d="M7 8h10v3a5 5 0 0 1-10 0z" /><path d="M12 16v5" /></svg>
+);
+export const IconActivity = (p: P) => (
+  <svg {...base(p)}><path d="M3 12h4l2.5 7 5-14L17 12h4" /></svg>
+);
+export const IconPause = (p: P) => (<svg {...base(p)}><path d="M8 5v14M16 5v14" /></svg>);

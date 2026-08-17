@@ -4,8 +4,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { api, ClientApiError } from "@/lib/client";
 import { BoltIcon } from "@/components/brand";
-import { IconArrow, IconCheck, IconSparkle } from "@/components/icons";
-import { Spinner } from "@/components/ui";
+import { IconArrow } from "@/components/icons";
+import { DoneRun, type RunStep } from "@/components/app/done-run";
 import { CopyButton } from "@/components/copy-button";
 
 interface LazyResult {
@@ -143,33 +143,11 @@ export function LazyHero({ autoStart = false }: { autoStart?: boolean }) {
 }
 
 function LazyProgress({ stage }: { stage: number }) {
-  return (
-    <div className="card overflow-hidden p-7">
-      <div className="flex items-center gap-3">
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-brand to-cyan text-white">
-          <IconSparkle className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-lg font-semibold text-ink">I&apos;ve got you.</p>
-          <p className="text-sm text-muted">Give me a moment…</p>
-        </div>
-      </div>
-      <ul className="mt-6 space-y-3">
-        {STAGES.map((label, i) => {
-          const done = i < stage;
-          const current = i === stage;
-          return (
-            <li key={label} className={`flex items-center gap-3 text-sm transition-opacity ${i <= stage ? "opacity-100" : "opacity-40"}`}>
-              <span className={`grid h-6 w-6 place-items-center rounded-full ${done ? "bg-emerald-100 text-emerald-600" : current ? "bg-blue-50 text-brand" : "bg-surface text-muted"}`}>
-                {done ? <IconCheck className="h-3.5 w-3.5" /> : current ? <Spinner className="h-3.5 w-3.5" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
-              </span>
-              <span className={done || current ? "text-ink" : "text-muted"}>{label}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
+  const steps: RunStep[] = STAGES.map((label, i) => ({
+    label,
+    state: i < stage ? "done" : i === stage ? "active" : "pending",
+  }));
+  return <DoneRun title="I've got you." subtitle="Give me a moment…" steps={steps} />;
 }
 
 function LazyResultView({

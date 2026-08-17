@@ -60,11 +60,33 @@ export default function BrainPage() {
 
   if (loading) return <div className="card p-8 text-center text-ink-soft">Loading your Business Brain…</div>;
 
+  const knowledge: { label: string; filled: boolean }[] = [
+    { label: "Brand", filled: !!brain.businessName || !!brain.tone },
+    { label: "What you sell", filled: !!brain.products },
+    { label: "Customers", filled: !!brain.idealCustomer },
+    { label: "Description", filled: !!brain.description },
+    { label: "Location", filled: !!brain.location },
+    { label: "Channels", filled: !!brain.website || !!brain.instagram },
+  ];
+  const knownCount = knowledge.filter((k) => k.filled).length;
+
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-3xl font-semibold tracking-tight">Business Brain</h1>
-        <p className="mt-1 text-ink-soft">What DONE knows about your business. Edit anytime.</p>
+        <p className="eyebrow">Business Brain</p>
+        <h1 className="display mt-2">
+          {knownCount === 0
+            ? "Teach DONE about your business."
+            : <>DONE knows <span className="text-gradient">{knownCount} of {knowledge.length}</span> things about your business.</>}
+        </h1>
+        <p className="mt-2 max-w-xl text-ink-soft">The more it knows, the less you have to explain. This shapes everything DONE writes and decides.</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {knowledge.map((k) => (
+            <span key={k.label} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${k.filled ? "border-brand/20 bg-blue-50 text-brand" : "border-line bg-white text-muted"}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${k.filled ? "bg-brand" : "bg-line-strong"}`} /> {k.label}
+            </span>
+          ))}
+        </div>
       </header>
 
       {error ? <Alert>{error}</Alert> : null}

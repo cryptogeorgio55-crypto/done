@@ -101,6 +101,21 @@ model Workspace {
   notifications    Notification[]
   auditLogs        AuditLog[]
 
+  // Autonomous OS
+  integrationAccounts IntegrationAccount[]
+  events              Event[]
+  automationRules     AutomationRule[]
+  automationRuns      AutomationRun[]
+  approvals           Approval[]
+  actionLogs          ActionLog[]
+  autonomySettings    AutonomySettings?
+  operatingRules      OperatingRule[]
+  memories            Memory[]
+  externalEntities    ExternalEntity[]
+  entityLinks         EntityLink[]
+  knowledgeSources    KnowledgeSource[]
+  knowledgeDocuments  KnowledgeDocument[]
+
   @@index([ownerId])
   @@index([slug])
 }
@@ -498,4 +513,389 @@ model SystemSetting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ===========================================================================
+// AUTONOMOUS AI BUSINESS OS
+// ===========================================================================
+//
+// Design notes:
+// - Provider tokens are NEVER stored in plaintext. OAuthToken holds AES-256-GCM
+//   ciphertext only. The frontend never receives them.
+// - Every autonomous artifact (account, event, run, approval, action, memory,
+//   entity) is workspace-scoped. Tenant isolation is enforced in application
+//   code via requireWorkspaceContext — these FKs make leakage structurally hard.
+// - Enum-like fields use String for SQLite portability, matching the rest of
+//   the schema.
+
+// ---------------------------------------------------------------------------
+// Integrations / connectors
+// ---------------------------------------------------------------------------
+
+/** A workspace's connection to one external provider (gmail, calendar, ...). */
+model IntegrationAccount {
+  id             String   @id @default(uuid())
+  workspaceId    String
+  provider       String   // gmail | google_calendar | google_drive | slack | ...
+  status         String   @default("disconnected") // connected | disconnected | needs_attention | error
+  mode           String   @default("sandbox")      // oauth | sandbox (simulated, honestly labelled)
+  displayName    String?  // e.g. the connected email address
+  externalAccountId String?
+  scopes         Json?    // string[] of granted provider scopes
+  config         Json?    // provider-specific, non-secret settings
+  health         String   @default("unknown") // ok | degraded | down | unknown
+  healthDetail   String?
+  lastSyncedAt   DateTime?
+  lastErrorAt    DateTime?
+  connectedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  token     OAuthToken?
+  syncStates SyncState[]
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId, status])
+}
+
+/** Encrypted OAuth credentials for an integration account. Ciphertext only. */
+model OAuthToken {
+  id             String   @id @default(uuid())
+  accountId      String   @unique
+  accessTokenEnc String   // AES-256-GCM ciphertext (iv:tag:data), never plaintext
+  refreshTokenEnc String?
+  tokenType      String?  @default("Bearer")
+  scope          String?
+  expiresAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  account IntegrationAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+}
+
+/** Incremental sync cursors/checkpoints per account + resource. */
+model SyncState {
+  id          String   @id @default(uuid())
+  accountId   String
+  resource    String   // messages | events | files
+  cursor      String?  // provider history id / page token / delta link
+  checkpoint  Json?
+  lastRunAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  account IntegrationAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, resource])
+}
+
+// ---------------------------------------------------------------------------
+// Event system
+// ---------------------------------------------------------------------------
+
+/** A normalized business event flowing through the DONE Loop. */
+model Event {
+  id          String   @id @default(uuid())
+  workspaceId String
+  type        String   // email.received | lead.followup_due | calendar.event_starting | ...
+  source      String   // gmail | google_calendar | internal | ...
+  category    String?  // needs_attention | sales | customers | operations | finance | meetings | marketing | done_auto
+  status      String   @default("new") // new | processing | processed | ignored | failed
+  dedupeKey   String   // provider event id or synthesized; unique per workspace
+  title       String?
+  summary     String?
+  payload     Json     // normalized, untrusted external content lives here
+  entityId    String?  // linked ExternalEntity/person if known
+  urgency     String?  // low | normal | high
+  confidence  Float?
+  occurredAt  DateTime @default(now())
+  processedAt DateTime?
+  error       String?
+  runId       String?  // AutomationRun that processed it
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, dedupeKey])
+  @@index([workspaceId, status])
+  @@index([workspaceId, category])
+  @@index([workspaceId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Automations & runs (a "DONE Run" is an AutomationRun)
+// ---------------------------------------------------------------------------
+
+model AutomationRule {
+  id          String   @id @default(uuid())
+  workspaceId String
+  key         String?  // stable key for built-in rules (reply_new_leads, ...)
+  name        String
+  description String?
+  trigger     String   // event type or "schedule:morning_briefing"
+  conditions  Json?    // structured condition spec
+  actions     Json?    // ordered action templates
+  spec        Json?    // parsed natural-language spec (for NL automations)
+  enabled     Boolean  @default(true)
+  builtin     Boolean  @default(false)
+  lastRunAt   DateTime?
+  lastStatus  String?
+  runCount    Int      @default(0)
+  failureCount Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  runs      AutomationRun[]
+
+  @@index([workspaceId, enabled])
+}
+
+model AutomationRun {
+  id            String   @id @default(uuid())
+  workspaceId   String
+  ruleId        String?
+  trigger       String   // event | lazy | schedule | manual
+  eventId       String?
+  status        String   @default("running") // running | completed | needs_approval | failed
+  intent        String?
+  summary       String?  // safe decision summary — never raw chain-of-thought
+  message       String?  // friendly owner-facing line
+  actionsPlanned Int     @default(0)
+  actionsDone   Int      @default(0)
+  approvalsCount Int     @default(0)
+  offline       Boolean  @default(false)
+  error         String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  rule      AutomationRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  steps     AutomationStep[]
+  approvals Approval[]
+  actions   ActionLog[]
+
+  @@index([workspaceId, startedAt])
+  @@index([workspaceId, status])
+}
+
+model AutomationStep {
+  id         String   @id @default(uuid())
+  runId      String
+  seq        Int      @default(0)
+  tool       String
+  risk       String   @default("low") // low | medium | high
+  status     String   @default("pending") // pending | done | approval | blocked | failed | skipped
+  input      Json?
+  output     Json?
+  decision   String?  // auto | approval | never | ignore
+  reason     String?
+  error      String?
+  createdAt  DateTime @default(now())
+
+  run AutomationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}
+
+// ---------------------------------------------------------------------------
+// Approvals
+// ---------------------------------------------------------------------------
+
+model Approval {
+  id          String   @id @default(uuid())
+  workspaceId String
+  runId       String?
+  title       String
+  description String?
+  actionType  String   // send_email | create_event | update_lead | send_followup | ...
+  risk        String   @default("medium")
+  source      String?  // gmail | internal | ...
+  previewText String?  // human-readable preview of the exact action
+  reason      String?  // why DONE proposes this
+  payload     Json     // the exact validated action input to execute on approval
+  status      String   @default("pending") // pending | approved | rejected | expired | executed | failed
+  decidedById String?
+  decidedAt   DateTime?
+  executedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  run       AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Action log — the "DONE Activity" feed
+// ---------------------------------------------------------------------------
+
+model ActionLog {
+  id          String   @id @default(uuid())
+  workspaceId String
+  runId       String?
+  tool        String
+  capability  String?  // e.g. gmail.send_message
+  risk        String   @default("low")
+  status      String   @default("success") // success | failed | blocked | pending_approval
+  decision    String?  // auto | approval | never
+  title       String
+  detail      String?
+  reason      String?  // "Why did DONE do this?" concise summary
+  reversible  Boolean  @default(false)
+  undoToken   String?
+  undoneAt    DateTime?
+  targetType  String?
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  run       AutomationRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Autonomy configuration & operating manual
+// ---------------------------------------------------------------------------
+
+model AutonomySettings {
+  id              String   @id @default(uuid())
+  workspaceId     String   @unique
+  level           String   @default("prepare") // assist | prepare | autopilot | custom
+  paused          Boolean  @default(false)     // kill switch
+  pausedReason    String?
+  categoryPolicies Json?   // { sales_reply: "auto"|"approval"|"never", complaint: ..., ... }
+  businessHours   Json?    // { timezone, days: [1..5], start: "09:00", end: "18:00" }
+  dailyActionLimit Int     @default(50)
+  monthlyAiBudget Int?     // soft cap on autonomous AI calls per month
+  senderName      String?
+  signature       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+/** Explicit operating rules ("Never discount without asking me."). */
+model OperatingRule {
+  id          String   @id @default(uuid())
+  workspaceId String
+  category    String   // communication | sales | scheduling | discount | support | approval | escalation
+  rule        String
+  source      String   @default("manual") // manual | inferred
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, category])
+}
+
+// ---------------------------------------------------------------------------
+// Memory system (profile | operational | relationship | knowledge | execution)
+// ---------------------------------------------------------------------------
+
+model Memory {
+  id          String   @id @default(uuid())
+  workspaceId String
+  layer       String   // profile | operational | relationship | knowledge | execution
+  subjectType String?  // lead | customer | person | ...
+  subjectId   String?
+  key         String?  // optional dedupe key within a subject+layer
+  content     String
+  importance  Int      @default(0)
+  metadata    Json?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, layer])
+  @@index([workspaceId, subjectType, subjectId])
+}
+
+// ---------------------------------------------------------------------------
+// Entity graph
+// ---------------------------------------------------------------------------
+
+/** A person/company/thread/etc. discovered in a connected system. */
+model ExternalEntity {
+  id          String   @id @default(uuid())
+  workspaceId String
+  provider    String   // gmail | google_calendar | internal | ...
+  kind        String   // person | company | thread | message | event | file | order
+  externalId  String
+  displayName String?
+  email       String?
+  data        Json?
+  leadId      String?  // link to internal Lead when resolved
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider, kind, externalId])
+  @@index([workspaceId, kind])
+  @@index([workspaceId, email])
+}
+
+model EntityLink {
+  id          String   @id @default(uuid())
+  workspaceId String
+  fromType    String
+  fromId      String
+  toType      String
+  toId        String
+  relation    String   // belongs_to | mentions | scheduled_with | proposal_for | ...
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, fromType, fromId])
+  @@index([workspaceId, toType, toId])
+}
+
+// ---------------------------------------------------------------------------
+// Connected knowledge (documents from Drive etc.)
+// ---------------------------------------------------------------------------
+
+model KnowledgeSource {
+  id          String   @id @default(uuid())
+  workspaceId String
+  provider    String   // google_drive | manual | website
+  label       String
+  externalId  String?  // folder id
+  status      String   @default("active") // active | paused | error
+  lastIndexedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  documents KnowledgeDocument[]
+
+  @@index([workspaceId])
+}
+
+model KnowledgeDocument {
+  id          String   @id @default(uuid())
+  workspaceId String
+  sourceId    String?
+  title       String
+  kind        String?  // price_list | policy | faq | proposal | menu | contract | doc
+  externalId  String?
+  content     String   // extracted text (indexed by naive keyword search for now)
+  version     String?
+  freshness   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  source    KnowledgeSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
 }

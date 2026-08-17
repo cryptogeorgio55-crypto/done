@@ -20,6 +20,15 @@ export const config = {
     required("SESSION_SECRET", process.env.SESSION_SECRET) ||
     "insecure-dev-session-secret-do-not-use-in-production",
   platformAdminEmail: (process.env.PLATFORM_ADMIN_EMAIL || "").toLowerCase().trim(),
+  // Dedicated key for encrypting secrets at rest (OAuth tokens). Falls back to
+  // the session secret in dev; set a distinct value in production.
+  encryptionKey: process.env.ENCRYPTION_KEY || "",
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID || "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    // Redirect base; the per-provider callback path is appended.
+    redirectBase: process.env.GOOGLE_REDIRECT_BASE || process.env.APP_URL || "http://localhost:3000",
+  },
   ai: {
     forcedProvider: process.env.AI_PROVIDER || "",
     anthropic: {
@@ -41,6 +50,11 @@ export const config = {
     resendApiKey: process.env.RESEND_API_KEY || "",
   },
 } as const;
+
+/** True when real Google OAuth credentials are configured. */
+export function googleOAuthConfigured(): boolean {
+  return Boolean(config.google.clientId && config.google.clientSecret);
+}
 
 /** Which AI provider will actually be used, given current configuration. */
 export function resolveAiProvider(): "anthropic" | "openai" | "ollama" | "offline" {

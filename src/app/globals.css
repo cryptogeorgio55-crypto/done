@@ -208,6 +208,80 @@ body {
 /* Success check svg */
 .success-check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: check-draw 0.4s var(--ease-out) 0.1s forwards; }
 
+/* ---- DONE PULSE — the signature business-state orb ---------------- */
+/* Colour is driven per-state via --p1/--p2; motion speed via --p-speed. */
+.done-pulse {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--pulse-size, 168px);
+  height: var(--pulse-size, 168px);
+  --p1: var(--color-brand);
+  --p2: var(--color-cyan);
+  --p-speed: 4.2s;
+}
+.done-pulse[data-state="calm"]        { --p1: #2563eb; --p2: #60a5fa; --p-speed: 6s; }
+.done-pulse[data-state="active"]      { --p1: #2563eb; --p2: #06b6d4; --p-speed: 2.6s; }
+.done-pulse[data-state="attention"]   { --p1: #f59e0b; --p2: #fbbf24; --p-speed: 2.2s; }
+.done-pulse[data-state="opportunity"] { --p1: #06b6d4; --p2: #34d399; --p-speed: 3.4s; }
+
+.done-pulse__core {
+  position: absolute;
+  inset: 26%;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 32% 28%, color-mix(in oklab, var(--p2) 85%, white), var(--p1) 70%);
+  box-shadow: 0 10px 40px -6px color-mix(in oklab, var(--p1) 60%, transparent);
+  animation: pulse-breathe var(--p-speed) var(--ease-out) infinite;
+}
+.done-pulse__ring {
+  position: absolute;
+  inset: 12%;
+  border-radius: 9999px;
+  border: 1.5px solid color-mix(in oklab, var(--p1) 45%, transparent);
+  animation: pulse-ring var(--p-speed) var(--ease-out) infinite;
+}
+.done-pulse__ring--2 { animation-delay: calc(var(--p-speed) / 2); }
+.done-pulse__halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--p2) 22%, transparent), transparent 62%);
+  filter: blur(6px);
+}
+@keyframes pulse-breathe {
+  0%, 100% { transform: scale(1);    opacity: 0.94; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(0.72); opacity: 0.9; }
+  100% { transform: scale(1.5);  opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .done-pulse__core, .done-pulse__ring { animation: none !important; }
+  .done-pulse__ring { opacity: 0.4; }
+}
+
+/* ---- Zone header (LIVE / NEEDS YOU / NEXT) ----------------------- */
+.zone-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.live-dot {
+  width: 0.45rem; height: 0.45rem; border-radius: 9999px; background: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  animation: live-ping 1.8s ease-out infinite;
+}
+@keyframes live-ping {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   .stagger > *,

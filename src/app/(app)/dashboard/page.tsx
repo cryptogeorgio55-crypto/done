@@ -2,40 +2,26 @@ import Link from "next/link";
 import { requireWorkspaceContext } from "@/lib/workspace/context";
 import { db } from "@/lib/db";
 import { getUsageSnapshot } from "@/lib/usage";
+import { buildBriefing } from "@/lib/autopilot/briefing";
+import { listAccounts } from "@/lib/connectors/accounts";
+import { listRules } from "@/lib/automations/rules";
 import { LazyHero } from "@/components/lazy/lazy-hero";
-import { Metric } from "@/components/ui";
-import {
-  IconCustomers, IconContent, IconReplies, IconLeads, IconToday, IconSparkle, IconArrow,
-} from "@/components/icons";
+import { DonePulse, PULSE_COPY, type PulseState } from "@/components/app/done-pulse";
+import { LiveActivity } from "@/components/app/live-activity";
+import { DoneStatus } from "@/components/app/done-status";
+import { IconArrow, IconInbox, IconLeads, IconToday, IconAutopilot, IconApprovals } from "@/components/icons";
 
-const ACTIONS = [
-  { title: "Get Customers", desc: "Build an acquisition campaign", href: "/campaigns", Icon: IconCustomers },
-  { title: "Create Content", desc: "Today's recommended post", href: "/content", Icon: IconContent },
-  { title: "Reply to a customer", desc: "Paste a message, get the answer", href: "/replies", Icon: IconReplies },
-  { title: "Follow up a lead", desc: "A personal, timely nudge", href: "/leads", Icon: IconLeads },
-  { title: "Plan my week", desc: "A realistic weekly plan", href: "/plan", Icon: IconToday },
-  { title: "Create an offer", desc: "A promotion from what you sell", href: "/campaigns", Icon: IconSparkle },
-];
-
-function greeting(h: number) {
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
-const KIND_LABEL: Record<string, string> = {
-  campaign: "Built a campaign",
-  content: "Created content",
-  reply: "Wrote a reply",
-  followup: "Prepared a follow-up",
-  plan: "Planned your week",
+const PROVIDER_LABEL: Record<string, string> = {
+  gmail: "Gmail",
+  google_gmail: "Gmail",
+  google_calendar: "Calendar",
+  calendar: "Calendar",
 };
 
-function dayBucket(d: Date) {
-  const today = new Date(); const y = new Date(); y.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Today";
-  if (d.toDateString() === y.toDateString()) return "Yesterday";
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function timeEyebrow(d: Date) {
+  return d
+    .toLocaleString(undefined, { weekday: "long", hour: "numeric", minute: "2-digit" })
+    .toUpperCase();
 }
 
 export default async function DashboardPage({
@@ -47,124 +33,234 @@ export default async function DashboardPage({
   const ctx = await requireWorkspaceContext();
   const wsId = ctx.workspace.id;
   const now = new Date();
-  const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
 
-  const [usage, followupCount, lastContent, recentGens, campaignCount] = await Promise.all([
+  const [
+    briefing,
+    accounts,
+    rules,
+    pendingApprovals,
+    pendingApprovalCount,
+    followupsDue,
+    meetings,
+    recentLogs,
+    handledToday,
+    usage,
+    hotLeads,
+    newInbox,
+  ] = await Promise.all([
+    buildBriefing(ctx),
+    listAccounts(wsId),
+    listRules(wsId),
+    db.approval.findMany({ where: { workspaceId: wsId, status: "pending" }, orderBy: { createdAt: "desc" }, take: 4 }),
+    db.approval.count({ where: { workspaceId: wsId, status: "pending" } }),
+    db.lead.count({ where: { workspaceId: wsId, deletedAt: null, nextFollowUpAt: { lte: now }, stage: { notIn: ["won", "lost"] } } }),
+    db.externalEntity.findMany({ where: { workspaceId: wsId, provider: "google_calendar", kind: "event" } }),
+    db.actionLog.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 8 }),
+    db.actionLog.count({ where: { workspaceId: wsId, status: "executed", createdAt: { gte: startOfDay } } }),
     getUsageSnapshot(wsId),
-    db.lead.count({ where: { workspaceId: wsId, deletedAt: null, stage: { notIn: ["won", "lost"] } } }),
-    db.contentItem.findFirst({ where: { workspaceId: wsId, deletedAt: null }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
-    db.aiGeneration.findMany({ where: { workspaceId: wsId }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, kind: true, createdAt: true } }),
-    db.campaign.count({ where: { workspaceId: wsId, deletedAt: null } }),
+    db.lead.count({ where: { workspaceId: wsId, deletedAt: null, stage: { in: ["interested", "followup"] } } }),
+    db.event.count({ where: { workspaceId: wsId, status: "new" } }),
   ]);
 
   const firstName = (ctx.user.name || "there").split(" ")[0];
-  const staleContent = !lastContent || lastContent.createdAt < fiveDaysAgo;
-  const daysSince = lastContent ? Math.floor((Date.now() - lastContent.createdAt.getTime()) / 86400000) : null;
-  const weekendComing = [4, 5].includes(now.getUTCDay()); // Thu/Fri
 
-  // Highest-priority recommendation from real signals.
-  const rec =
-    followupCount > 0
-      ? { title: `${followupCount} ${followupCount === 1 ? "person is" : "people are"} waiting for a follow-up.`, cta: "Handle them", href: "/leads", tone: "urgent" as const }
-      : staleContent
-        ? { title: daysSince === null ? "You haven't posted anything yet." : `You haven't posted in ${daysSince} days.`, cta: "Fix that", href: "/content", tone: "urgent" as const }
-        : weekendComing
-          ? { title: "The weekend is coming. Want me to build an offer?", cta: "Let DONE handle it", href: "/dashboard?lazy=1", tone: "opportunity" as const }
-          : { title: "Nothing urgent. You're good.", cta: "Create something anyway", href: "/content", tone: "calm" as const };
+  // ---- What DONE is watching (real connected accounts) --------------
+  const watching = accounts
+    .filter((a) => a.status === "connected")
+    .map((a) => PROVIDER_LABEL[a.provider] ?? a.provider);
+  const automationsActive = rules.filter((r) => r.enabled).length;
 
-  const tasksThisMonth = usage.ai_generation;
-  const hoursSaved = Math.max(1, Math.round((tasksThisMonth * 12) / 60));
+  // ---- Next meeting (from synced calendar entities) -----------------
+  const upcoming = meetings
+    .map((m) => m.data as { startsAt?: string; title?: string })
+    .filter((m) => m.startsAt && new Date(m.startsAt) >= now)
+    .sort((a, b) => (a.startsAt || "").localeCompare(b.startsAt || ""));
+  const nextMeeting = upcoming[0];
+  const minsToMeeting = nextMeeting?.startsAt
+    ? Math.round((new Date(nextMeeting.startsAt).getTime() - now.getTime()) / 60000)
+    : null;
+
+  // ---- Business state → the Pulse -----------------------------------
+  const needsYou = pendingApprovalCount + followupsDue;
+  const working = recentLogs.some((l) => now.getTime() - l.createdAt.getTime() < 3 * 60_000);
+  const pulseState: PulseState =
+    needsYou > 0 ? "attention" : hotLeads > 0 || newInbox > 0 ? "opportunity" : working ? "active" : "calm";
+
+  const statement =
+    pulseState === "attention"
+      ? needsYou === 1
+        ? "One thing needs you."
+        : `${needsYou} things need you.`
+      : pulseState === "opportunity"
+        ? "DONE found something worth doing."
+        : pulseState === "active"
+          ? "DONE is working."
+          : "Your business is under control.";
+
+  const subline =
+    `DONE has handled ${handledToday} thing${handledToday === 1 ? "" : "s"} today.` +
+    (needsYou > 0 ? ` ${needsYou} need${needsYou === 1 ? "s" : ""} your attention.` : " Nothing needs you right now.");
+
+  // ---- NEXT — what DONE predicts should happen next -----------------
+  const weekendComing = [4, 5].includes(now.getDay());
+  const marketing = briefing.sections.find((s) => s.key === "marketing");
+  const customers = briefing.sections.find((s) => s.key === "customers");
+  const next: { title: string; detail: string; href: string }[] = [];
+  if (nextMeeting)
+    next.push({
+      title: `Prepare "${nextMeeting.title ?? "your next meeting"}"`,
+      detail: minsToMeeting != null && minsToMeeting < 600 ? `Starts in ${minsToMeeting} min` : "Coming up today",
+      href: "/autopilot",
+    });
+  if (marketing) next.push({ title: "Post something today", detail: marketing.detail, href: "/content" });
+  if (customers) next.push({ title: "Welcome your new leads", detail: customers.detail, href: "/leads" });
+  if (next.length === 0 && weekendComing)
+    next.push({ title: "Build a weekend offer", detail: "You have open capacity this weekend.", href: "/campaigns" });
+
+  const activityInitial = recentLogs.map((l) => ({
+    id: l.id, tool: l.tool, risk: l.risk, status: l.status, decision: l.decision,
+    title: l.title, detail: l.detail, reason: l.reason, reversible: l.reversible,
+    createdAt: l.createdAt.toISOString(),
+  }));
 
   return (
-    <div className="space-y-9">
-      {/* Hero */}
-      <section className="animate-slide-up">
-        <p className="eyebrow">{greeting(now.getUTCHours())}, {firstName}</p>
-        <h1 className="display mt-2">What do you want <span className="text-gradient">DONE?</span></h1>
-        <p className="mt-3 max-w-xl text-lg text-ink-soft">Your business is ready. Pick something — or leave it to me.</p>
+    <div className="space-y-8">
+      {/* ---------- Top line: time + DONE presence ---------- */}
+      <div className="flex items-center justify-between gap-4 animate-fade">
+        <p className="eyebrow">{timeEyebrow(now)}</p>
+        <DoneStatus watching={watching} automations={automationsActive} issues={0} />
+      </div>
+
+      {/* ---------- Hero: dynamic statement + Pulse ---------- */}
+      <section className="grid items-center gap-6 animate-slide-up sm:grid-cols-[1fr_auto]">
+        <div>
+          <h1 className="display max-w-2xl">{statement}</h1>
+          <p className="mt-3 max-w-xl text-lg text-ink-soft">{subline}</p>
+          <p className="mt-1 text-sm text-muted">
+            {PULSE_COPY[pulseState].sub} · Good {now.getHours() < 12 ? "morning" : now.getHours() < 18 ? "afternoon" : "evening"}, {firstName}.
+          </p>
+        </div>
+        <div className="hidden sm:block">
+          <DonePulse state={pulseState} size={168} />
+        </div>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          <LazyHero autoStart={lazy === "1"} />
+      {/* ---------- Business state strip (integrated, not 5 cards) ---------- */}
+      <div className="card grid grid-cols-2 divide-line sm:grid-cols-5 sm:divide-x">
+        <StateCell Icon={IconInbox} label="Inbox" value={newInbox > 0 ? `${newInbox}` : "0"} note={newInbox > 0 ? "need attention" : "all clear"} href="/inbox" tone={newInbox > 0 ? "amber" : "muted"} />
+        <StateCell Icon={IconLeads} label="Leads" value={`${hotLeads}`} note={hotLeads > 0 ? "hot" : "quiet"} href="/leads" tone={hotLeads > 0 ? "brand" : "muted"} />
+        <StateCell Icon={IconToday} label="Today" value={`${handledToday}`} note="handled" href="/automations" tone="emerald" />
+        <StateCell Icon={IconAutopilot} label="Autopilot" value={automationsActive > 0 ? "Active" : "Off"} note={`${automationsActive} rules`} href="/autopilot" tone={automationsActive > 0 ? "emerald" : "muted"} />
+        <StateCell Icon={IconToday} label="Next meeting" value={minsToMeeting != null && minsToMeeting < 600 ? `${minsToMeeting}m` : "—"} note={nextMeeting?.title ?? "none scheduled"} href="/autopilot" tone="muted" />
+      </div>
 
-          {/* Quick actions */}
-          <div className="stagger grid gap-3 sm:grid-cols-2">
-            {ACTIONS.map((a, i) => (
-              <Link key={a.title} href={a.href} className="card card-hover flex items-start gap-3.5 p-5" style={{ ["--i" as string]: i }}>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 text-brand">
-                  <a.Icon className="h-5 w-5" />
-                </span>
-                <span>
-                  <span className="block font-semibold text-ink">{a.title}</span>
-                  <span className="mt-0.5 block text-sm text-ink-soft">{a.desc}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
+      {/* ---------- I'M LAZY — signature interaction ---------- */}
+      <LazyHero autoStart={lazy === "1"} />
 
-        {/* Right rail */}
-        <aside className="space-y-4">
-          {/* Priority */}
-          <div className={`card relative overflow-hidden p-6 ${rec.tone === "urgent" ? "" : ""}`}>
-            {rec.tone !== "calm" ? <div className="orb -right-8 -top-10 h-28 w-28 bg-brand/25" /> : null}
-            <p className="eyebrow relative">Today&apos;s priority</p>
-            <p className="relative mt-2 text-lg font-semibold text-ink">{rec.title}</p>
-            <Link href={rec.href} className="relative mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-brand to-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-[0_8px_20px_-10px_rgba(37,99,235,0.8)] hover:to-brand-700">
-              {rec.cta} <IconArrow className="h-4 w-4" />
-            </Link>
-          </div>
+      {/* ---------- Three zones ---------- */}
+      <div className="grid gap-5 lg:grid-cols-3">
+        {/* LIVE */}
+        <section className="card p-6">
+          <p className="zone-eyebrow text-muted">
+            <span className="live-dot" /> Live
+          </p>
+          <p className="mt-1 mb-5 text-sm text-ink-soft">What DONE is doing.</p>
+          <LiveActivity initial={activityInitial} />
+        </section>
 
-          {/* Daily brief */}
-          <div className="card p-6">
-            <p className="eyebrow">Your morning brief</p>
-            <ul className="mt-3 space-y-2 text-sm text-ink-soft">
-              <BriefLine ok={followupCount === 0}>{followupCount > 0 ? `${followupCount} lead${followupCount === 1 ? "" : "s"} need attention` : "No leads waiting"}</BriefLine>
-              <BriefLine ok={!staleContent}>{staleContent ? "Content is due for a refresh" : "Content is up to date"}</BriefLine>
-              <BriefLine ok={campaignCount > 0}>{campaignCount > 0 ? `${campaignCount} campaign${campaignCount === 1 ? "" : "s"} running` : "No campaigns yet"}</BriefLine>
-            </ul>
-          </div>
-
-          {/* Outcome metrics */}
-          <div className="card p-6">
-            <p className="eyebrow">DONE this month</p>
-            <div className="mt-3 grid grid-cols-2 gap-4">
-              <Metric value={tasksThisMonth} label="pieces of work" />
-              <Metric value={usage.campaign} label="campaigns built" />
-              <Metric value={usage.lazy_run} label="lazy runs" />
-              <Metric value={`≈${hoursSaved}h`} label="saved" hint="estimate" />
+        {/* NEEDS YOU */}
+        <section className="card p-6">
+          <p className="zone-eyebrow text-amber-600">Needs you</p>
+          <p className="mt-1 mb-5 text-sm text-ink-soft">Decisions only you can make.</p>
+          {pendingApprovals.length === 0 && followupsDue === 0 ? (
+            <div className="py-2">
+              <p className="text-[15px] font-medium text-ink">Nothing needs you.</p>
+              <p className="mt-0.5 text-sm text-ink-soft">DONE is handling the rest.</p>
             </div>
-          </div>
-
-          {/* Activity timeline */}
-          {recentGens.length > 0 ? (
-            <div className="card p-6">
-              <p className="eyebrow">What DONE has done</p>
-              <ol className="mt-3 space-y-3">
-                {recentGens.map((g) => (
-                  <li key={g.id} className="flex items-start gap-3 text-sm">
-                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
-                    <span className="flex-1">
-                      <span className="text-ink">{KIND_LABEL[g.kind] || "Did something useful"}</span>
-                      <span className="ml-2 text-xs text-muted">{dayBucket(g.createdAt)}</span>
+          ) : (
+            <ul className="space-y-3">
+              {pendingApprovals.map((a) => (
+                <li key={a.id}>
+                  <Link href="/approvals" className="block rounded-xl border border-line p-3.5 transition-colors hover:border-line-strong hover:bg-surface">
+                    <p className="text-[15px] font-medium leading-snug text-ink">{a.title}</p>
+                    {a.previewText ? <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{a.previewText}</p> : null}
+                    <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand">
+                      Review decision <IconArrow className="h-3 w-3" />
                     </span>
-                  </li>
-                ))}
-              </ol>
+                  </Link>
+                </li>
+              ))}
+              {followupsDue > 0 ? (
+                <li>
+                  <Link href="/leads" className="flex items-center justify-between rounded-xl border border-line p-3.5 transition-colors hover:border-line-strong hover:bg-surface">
+                    <span className="text-[15px] font-medium text-ink">
+                      {followupsDue} {followupsDue === 1 ? "person is" : "people are"} waiting for a follow-up.
+                    </span>
+                    <IconArrow className="h-4 w-4 shrink-0 text-brand" />
+                  </Link>
+                </li>
+              ) : null}
+            </ul>
+          )}
+        </section>
+
+        {/* NEXT */}
+        <section className="card p-6">
+          <p className="zone-eyebrow text-brand">Next</p>
+          <p className="mt-1 mb-5 text-sm text-ink-soft">What DONE thinks should happen.</p>
+          {next.length === 0 ? (
+            <div className="py-2">
+              <p className="text-[15px] font-medium text-ink">Nothing scheduled.</p>
+              <p className="mt-0.5 text-sm text-ink-soft">Want me to fix that?</p>
+              <Link href="/dashboard?lazy=1" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-brand to-brand-600 px-4 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-10px_rgba(37,99,235,0.8)] hover:to-brand-700">
+                I&apos;M LAZY <IconArrow className="h-4 w-4" />
+              </Link>
             </div>
-          ) : null}
-        </aside>
+          ) : (
+            <ol className="space-y-3">
+              {next.map((item, i) => (
+                <li key={item.title}>
+                  <Link href={item.href} className="flex items-start gap-3 rounded-xl border border-line p-3.5 transition-colors hover:border-line-strong hover:bg-surface">
+                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-blue-50 text-xs font-bold text-brand tabular-nums">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] font-medium leading-snug text-ink">{item.title}</span>
+                      <span className="mt-0.5 block text-sm text-ink-soft">{item.detail}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
     </div>
   );
 }
 
-function BriefLine({ ok, children }: { ok: boolean; children: React.ReactNode }) {
+const TONE: Record<string, string> = {
+  amber: "text-amber-600",
+  brand: "text-brand",
+  emerald: "text-emerald-600",
+  muted: "text-muted",
+};
+
+function StateCell({
+  Icon, label, value, note, href, tone,
+}: {
+  Icon: (p: { className?: string }) => React.ReactNode;
+  label: string; value: string; note: string; href: string; tone: keyof typeof TONE;
+}) {
   return (
-    <li className="flex items-center gap-2.5">
-      <span className={`h-1.5 w-1.5 rounded-full ${ok ? "bg-emerald-400" : "bg-amber-400"}`} />
-      {children}
-    </li>
+    <Link href={href} className="group flex flex-col gap-1 p-4 transition-colors hover:bg-surface first:rounded-l-2xl last:rounded-r-2xl">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </span>
+      <span className={`text-2xl font-semibold tracking-tight ${TONE[tone]}`}>{value}</span>
+      <span className="truncate text-xs text-muted">{note}</span>
+    </Link>
   );
 }

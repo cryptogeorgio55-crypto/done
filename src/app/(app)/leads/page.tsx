@@ -25,6 +25,17 @@ const STAGE_TONE: Record<string, "brand" | "amber" | "gray" | "green"> = {
   won: "green",
   lost: "gray",
 };
+// Honest reads of what each stage implies — no fabricated confidence scores.
+const STAGE_INTENT: Record<string, string> = {
+  new: "Just came in. Worth a quick, warm welcome.",
+  contacted: "You've reached out — waiting to hear back.",
+  interested: "Showing buying signals. Good moment to move them forward.",
+  followup: "Due for a nudge. Don't let this one go cold.",
+  won: "Closed. Keep the relationship warm.",
+  lost: "Marked lost. Reactivation is still possible.",
+};
+// Hot first, then new work, then closed — so attention lands where it matters.
+const STAGE_RANK: Record<string, number> = { followup: 0, interested: 1, new: 2, contacted: 3, won: 4, lost: 5 };
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -81,9 +92,17 @@ export default function LeadsPage() {
     }
   }
 
+  const sorted = [...leads].sort((a, b) => (STAGE_RANK[a.stage] ?? 9) - (STAGE_RANK[b.stage] ?? 9));
+  const hotCount = leads.filter((l) => l.stage === "interested" || l.stage === "followup").length;
+
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Follow ups" title="Who needs attention?" subtitle="Track leads and let DONE write the personal follow-up at the right moment." />
+      <PageHeader
+        eyebrow="Relationships"
+        title="Who needs attention?"
+        subtitle="DONE reads where each relationship stands and writes the personal move at the right moment."
+        action={hotCount > 0 ? <Badge tone="amber">{hotCount} hot</Badge> : undefined}
+      />
 
       {error ? <Alert>{error}</Alert> : null}
 
@@ -106,18 +125,26 @@ export default function LeadsPage() {
         />
       ) : (
         <div className="space-y-3">
-          {leads.map((lead) => (
-            <div key={lead.id} className="card p-4">
+          {sorted.map((lead) => {
+            const hot = lead.stage === "interested" || lead.stage === "followup";
+            return (
+            <div key={lead.id} className={`card p-4 ${hot ? "border-amber-200" : ""}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold">{lead.name}</span>
                   <Badge tone={STAGE_TONE[lead.stage] || "gray"}>{lead.stage}</Badge>
+                  {lead.source ? <span className="text-xs text-muted">via {lead.source}</span> : null}
                 </div>
-                <Button variant="secondary" onClick={() => draftFollowUp(lead.id)} disabled={busyId === lead.id}>
-                  {busyId === lead.id ? "Drafting…" : "Draft follow-up"}
+                <Button variant={hot ? "primary" : "secondary"} onClick={() => draftFollowUp(lead.id)} disabled={busyId === lead.id}>
+                  {busyId === lead.id ? "Working…" : "Let DONE handle it"}
                 </Button>
               </div>
-              {lead.notes ? <p className="mt-1.5 text-sm text-ink-soft">{lead.notes}</p> : null}
+              {/* What DONE knows — an honest read of the relationship */}
+              <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-soft">
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand" />
+                {STAGE_INTENT[lead.stage] ?? "Tracked."}
+              </p>
+              {lead.notes ? <p className="mt-1 pl-3 text-sm text-muted">“{lead.notes}”</p> : null}
               {followUp?.leadId === lead.id ? (
                 <div className="mt-3 rounded-xl border border-line bg-surface p-3">
                   <div className="mb-2 flex items-center justify-between">
@@ -128,7 +155,8 @@ export default function LeadsPage() {
                 </div>
               ) : null}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

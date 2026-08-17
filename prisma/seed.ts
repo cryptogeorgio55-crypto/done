@@ -71,6 +71,7 @@ async function main() {
     { key: "social_publishing", description: "Publish posts to social platforms", enabled: false },
     { key: "team_invites", description: "Invite teammates to a workspace", enabled: true },
     { key: "billing", description: "Stripe billing & upgrades", enabled: false },
+    { key: "autopilot", description: "Autonomous OS: Inbox, DONE Loop, Approvals, Automations", enabled: true },
   ];
   for (const f of flags) {
     await db.featureFlag.upsert({

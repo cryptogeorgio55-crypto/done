@@ -29,15 +29,15 @@ export default async function LandingPage() {
       {/* Hero */}
       <section className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 pb-16 pt-10 lg:grid-cols-[1.05fr_0.95fr] lg:pt-16">
         <div className="animate-slide-up">
-          <p className="eyebrow">Your AI business assistant</p>
+          <p className="eyebrow">The AI operating system for your business</p>
           <h1 className="display mt-4">
-            Your business.
+            Half your work.
             <br />
-            <span className="text-gradient">DONE.</span>
+            Already <span className="text-gradient">DONE.</span>
           </h1>
           <p className="mt-6 max-w-lg text-lg text-ink-soft">
-            Content. Customers. Replies. Follow-ups. Promotions. One button for when you don&apos;t
-            feel like doing any of it.
+            Connect your inbox, calendar, customers and business. DONE watches what happens, handles
+            the routine work, and brings you in only when it matters.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <ButtonLink href={primaryHref} variant="primary" size="lg">
@@ -50,34 +50,68 @@ export default async function LandingPage() {
           <p className="mt-4 text-sm text-muted">No credit card needed · Works offline with zero setup</p>
         </div>
 
-        {/* Product demo mock */}
+        {/* Product demo mock — watch → understand → handle */}
         <div className="animate-slide-up-lg">
           <div className="glass rounded-3xl p-4 shadow-[0_40px_100px_-40px_rgba(37,99,235,0.5)]">
             <div className="rounded-2xl bg-white p-5">
-              <p className="eyebrow">Just press</p>
-              <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl px-5 py-4 text-white" style={{ background: "linear-gradient(120deg,#2563eb,#3b82f6 45%,#06b6d4)" }}>
-                <BoltIcon className="h-5 w-5" />
-                <span className="text-2xl font-semibold tracking-tight">I&apos;M LAZY</span>
-                <IconArrow className="h-5 w-5" />
+              <div className="flex items-center justify-between">
+                <p className="eyebrow">Live</p>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> DONE active
+                </span>
               </div>
-              <div className="mt-4 space-y-2">
-                {["Reading your business", "Finding the best opportunity", "Creating it"].map((s) => (
-                  <div key={s} className="flex items-center gap-2.5 text-sm text-ink-soft">
-                    <span className="grid h-5 w-5 place-items-center rounded-full bg-emerald-100 text-emerald-600"><IconCheck className="h-3 w-3" /></span>
-                    {s}
-                  </div>
+              <ol className="mt-3 space-y-3">
+                {[
+                  ["New email from Sarah", "Website pricing inquiry · Gmail"],
+                  ["DONE understood it", "High-intent lead — created & tagged"],
+                  ["Reply sent", "Answered her timeline question"],
+                  ["Follow-up scheduled", "Thursday, if she doesn't reply"],
+                ].map(([title, sub], i) => (
+                  <li key={title} className="flex items-start gap-3">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600"><IconCheck className="h-3.5 w-3.5" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-ink">{title}</span>
+                      <span className="block text-xs text-muted">{sub}</span>
+                    </span>
+                    <span className="ml-auto text-[11px] tabular-nums text-muted">{`11:4${i}`}</span>
+                  </li>
                 ))}
-              </div>
-              <div className="mt-4 rounded-2xl border border-line bg-surface/60 p-4">
-                <div className="flex items-center gap-2">
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-100 text-emerald-600"><IconCheck className="h-3.5 w-3.5" /></span>
-                  <span className="font-semibold text-ink">DONE.</span>
-                </div>
-                <p className="mt-2 text-sm text-ink-soft">I noticed you haven&apos;t promoted weekend bookings — so I built a weekend campaign.</p>
+              </ol>
+              <div className="mt-4 rounded-2xl border border-line bg-surface/60 p-4 text-center">
+                <span className="text-lg font-semibold tracking-tight text-ink">DONE.</span>
+                <p className="mt-0.5 text-xs text-ink-soft">You did nothing. It&apos;s already handled.</p>
               </div>
             </div>
           </div>
         </div>
+      </section>
+
+      {/* While you sleep */}
+      <section className="relative mx-auto max-w-4xl px-6 py-20">
+        <div className="text-center">
+          <h2 className="h-hero">Your business doesn&apos;t stop when you close the laptop.</h2>
+          <p className="mx-auto mt-3 max-w-lg text-ink-soft">Neither does DONE. Here&apos;s a night while you were asleep.</p>
+        </div>
+        <ol className="mx-auto mt-10 max-w-xl space-y-4">
+          {[
+            ["11:43 PM", "New lead", "Someone asked about your services on Instagram."],
+            ["11:44 PM", "DONE responded", "Answered instantly, in your brand voice."],
+            ["11:45 PM", "Lead created", "Tagged high-intent, follow-up scheduled."],
+            ["8:00 AM", "You open DONE", "Everything is handled."],
+          ].map(([time, title, body], i, arr) => (
+            <li key={title} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <span className={`h-3 w-3 rounded-full ${i === arr.length - 1 ? "bg-brand" : "bg-line-strong"}`} />
+                {i < arr.length - 1 ? <span className="mt-1 w-px flex-1 bg-line" /> : null}
+              </div>
+              <div className="pb-2">
+                <span className="text-xs font-semibold tabular-nums text-muted">{time}</span>
+                <p className="font-semibold text-ink">{title}</p>
+                <p className="text-sm text-ink-soft">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
       {/* Problem storytelling */}

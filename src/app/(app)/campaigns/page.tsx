@@ -55,6 +55,21 @@ export default async function CampaignsPage() {
                 <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-brand">Offer: {c.offer}</p>
               ) : null}
 
+              {/* Storyboard — the campaign flow at a glance */}
+              {c.assets.length > 0 ? (
+                <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                  {c.assets.map((a, i) => (
+                    <span key={a.id} className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface/60 px-2.5 py-1.5 text-xs font-medium text-ink">
+                        <span className="tabular-nums text-muted">{String(i + 1).padStart(2, "0")}</span>
+                        {ASSET_LABELS[a.kind] || a.kind}
+                      </span>
+                      {i < c.assets.length - 1 ? <span className="text-line-strong">→</span> : null}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
               <div className="mt-4 space-y-3">
                 {c.assets.map((a) => (
                   <div key={a.id} className="rounded-xl border border-line p-4">
