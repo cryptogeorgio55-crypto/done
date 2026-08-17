@@ -41,24 +41,21 @@ export default function ConnectionsPage() {
   async function connect(provider: string, oauth: boolean) {
     setBusy(provider); setError(""); setNotice("");
     try {
-      if (oauth) {
-        try {
-          const { authorizeUrl } = await api<{ authorizeUrl: string }>("/api/integrations/google/start", {
-            method: "POST", body: { provider },
-          });
-          window.location.href = authorizeUrl;
-          return;
-        } catch (e) {
-          // OAuth not configured on this server → fall back to sandbox.
-          if (!(e instanceof ClientApiError && e.api.code === "oauth_unconfigured")) throw e;
-        }
+      if (!oauth) {
+        setError("This integration connects through its own provider — coming soon.");
+        return;
       }
-      await api("/api/integrations", { method: "POST", body: { action: "connect_sandbox", provider } });
-      setNotice("Connected in sandbox mode — DONE will operate on a safe, simulated backend.");
-      await load();
+      const { authorizeUrl } = await api<{ authorizeUrl: string }>("/api/integrations/google/start", {
+        method: "POST", body: { provider },
+      });
+      window.location.href = authorizeUrl;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to connect");
-    } finally {
+      // Real connection only — if Google isn't configured, say so plainly.
+      if (e instanceof ClientApiError && e.api.code === "oauth_unconfigured") {
+        setError("Google isn't set up on this server yet. Add your Google OAuth credentials (see SETUP) to connect a real account.");
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to connect");
+      }
       setBusy(null);
     }
   }
@@ -105,7 +102,7 @@ export default function ConnectionsPage() {
                       <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-blue-50 to-cyan-50 text-brand"><IconPlug className="h-5 w-5" /></span>
                       <div>
                         <p className="font-semibold text-ink">{i.name}</p>
-                        <p className="text-xs text-muted">Phase {i.phase}{i.account?.mode === "sandbox" ? " · Sandbox" : ""}</p>
+                        <p className="text-xs text-muted">{connected ? "Real account" : i.oauth ? "Connect with Google" : `Phase ${i.phase}`}</p>
                       </div>
                     </div>
                     {connected ? (

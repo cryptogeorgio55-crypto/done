@@ -9,15 +9,15 @@ import { AppError } from "@/lib/errors";
 const bodySchema = z.object({ provider: z.enum(["gmail", "google_calendar", "google_drive"]) });
 
 // Begin the Google OAuth flow. Returns the authorize URL and stores the signed
-// PKCE/state in httpOnly cookies. If OAuth isn't configured, the client should
-// fall back to sandbox mode (nothing is faked as a real connection).
+// PKCE/state in httpOnly cookies. Real connection only — if OAuth credentials
+// aren't configured, we say so plainly (nothing is ever faked as connected).
 export const POST = handle(async (req) => {
   const ctx = await requireWorkspaceContext();
   requireRole(ctx, "admin");
   const { provider } = bodySchema.parse(await req.json().catch(() => ({})));
 
   if (!googleOAuthConfigured()) {
-    throw new AppError("oauth_unconfigured", "Google isn't set up on this server yet. Use sandbox mode to try it out.", 400);
+    throw new AppError("oauth_unconfigured", "Google OAuth isn't configured on this server. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to connect a real account.", 400);
   }
 
   const { authorizeUrl, stateCookie, codeVerifier } = buildGoogleAuthUrl({

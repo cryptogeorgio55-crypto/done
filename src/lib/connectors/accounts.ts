@@ -26,9 +26,10 @@ export async function getAccount(workspaceId: string, provider: string) {
 }
 
 /**
- * Connect a provider in SANDBOX mode. This is a real, working connection that
- * operates on a simulated backend — clearly labelled in the UI. It exists so
- * the autonomous loop is fully demonstrable without provider credentials.
+ * TEST/DEV FIXTURE ONLY — not reachable from any API route or the UI.
+ * Retained so the end-to-end DONE Loop test can exercise the full pipeline
+ * offline without live Google credentials. In production, accounts are created
+ * exclusively via real Google OAuth (mode "oauth"); there is no sandbox path.
  */
 export async function connectSandbox(ctx: WorkspaceContext, provider: string) {
   if (!isImplemented(provider)) {
