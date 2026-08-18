@@ -82,7 +82,7 @@ export default function BrainPage() {
         <p className="mt-2 max-w-xl text-ink-soft">The more it knows, the less you have to explain. This shapes everything DONE writes and decides.</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {knowledge.map((k) => (
-            <span key={k.label} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${k.filled ? "border-brand/20 bg-blue-50 text-brand" : "border-line bg-white text-muted"}`}>
+            <span key={k.label} className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${k.filled ? "border-brand/20 bg-brand-50 text-brand" : "border-line bg-white text-muted"}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${k.filled ? "bg-brand" : "bg-line-strong"}`} /> {k.label}
             </span>
           ))}

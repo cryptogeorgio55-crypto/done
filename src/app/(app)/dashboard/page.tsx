@@ -5,7 +5,8 @@ import { getUsageSnapshot } from "@/lib/usage";
 import { buildBriefing } from "@/lib/autopilot/briefing";
 import { listAccounts } from "@/lib/connectors/accounts";
 import { listRules } from "@/lib/automations/rules";
-import { LazyHero } from "@/components/lazy/lazy-hero";
+import { buildNextMoves } from "@/lib/intelligence/next-move";
+import { NextMoveBoard } from "@/components/app/next-move";
 import { DonePulse, PULSE_COPY, type PulseState } from "@/components/app/done-pulse";
 import { LiveActivity } from "@/components/app/live-activity";
 import { DoneStatus } from "@/components/app/done-status";
@@ -24,12 +25,7 @@ function timeEyebrow(d: Date) {
     .toUpperCase();
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ lazy?: string }>;
-}) {
-  const { lazy } = await searchParams;
+export default async function DashboardPage() {
   const ctx = await requireWorkspaceContext();
   const wsId = ctx.workspace.id;
   const now = new Date();
@@ -49,6 +45,7 @@ export default async function DashboardPage({
     usage,
     hotLeads,
     newInbox,
+    nextMoveResult,
   ] = await Promise.all([
     buildBriefing(ctx),
     listAccounts(wsId),
@@ -62,6 +59,7 @@ export default async function DashboardPage({
     getUsageSnapshot(wsId),
     db.lead.count({ where: { workspaceId: wsId, deletedAt: null, stage: { in: ["interested", "followup"] } } }),
     db.event.count({ where: { workspaceId: wsId, status: "new" } }),
+    buildNextMoves(ctx, { limit: 5 }),
   ]);
 
   const firstName = (ctx.user.name || "there").split(" ")[0];
@@ -156,8 +154,11 @@ export default async function DashboardPage({
         <StateCell Icon={IconToday} label="Next meeting" value={minsToMeeting != null && minsToMeeting < 600 ? `${minsToMeeting}m` : "—"} note={nextMeeting?.title ?? "none scheduled"} href="/autopilot" tone="muted" />
       </div>
 
-      {/* ---------- I'M LAZY — signature interaction ---------- */}
-      <LazyHero autoStart={lazy === "1"} />
+      {/* ---------- NEXT MOVE — the signature intelligence surface ---------- */}
+      <div>
+        <p className="eyebrow mb-3">Here&apos;s what matters now</p>
+        <NextMoveBoard initial={nextMoveResult.moves} />
+      </div>
 
       {/* ---------- Three zones ---------- */}
       <div className="grid gap-5 lg:grid-cols-3">
@@ -213,9 +214,9 @@ export default async function DashboardPage({
           {next.length === 0 ? (
             <div className="py-2">
               <p className="text-[15px] font-medium text-ink">Nothing scheduled.</p>
-              <p className="mt-0.5 text-sm text-ink-soft">Want me to fix that?</p>
-              <Link href="/dashboard?lazy=1" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-brand to-brand-600 px-4 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-10px_rgba(37,99,235,0.8)] hover:to-brand-700">
-                I&apos;M LAZY <IconArrow className="h-4 w-4" />
+              <p className="mt-0.5 text-sm text-ink-soft">DONE will surface the next move as soon as one appears.</p>
+              <Link href="/content" className="mt-3 inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium text-white shadow-[0_8px_20px_-10px_rgba(0,147,146,0.8)]" style={{ background: "var(--grad-brand)" }}>
+                Create content <IconArrow className="h-4 w-4" />
               </Link>
             </div>
           ) : (
@@ -223,7 +224,7 @@ export default async function DashboardPage({
               {next.map((item, i) => (
                 <li key={item.title}>
                   <Link href={item.href} className="flex items-start gap-3 rounded-xl border border-line p-3.5 transition-colors hover:border-line-strong hover:bg-surface">
-                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-blue-50 text-xs font-bold text-brand tabular-nums">
+                    <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-brand-50 text-xs font-bold text-brand tabular-nums">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span className="min-w-0 flex-1">

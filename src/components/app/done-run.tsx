@@ -51,7 +51,7 @@ export function DoneRunStep({ label, state }: RunStep) {
           state === "done"
             ? "bg-emerald-100 text-emerald-600"
             : state === "active"
-              ? "bg-blue-50 text-brand"
+              ? "bg-brand-50 text-brand"
               : "bg-surface text-muted"
         }`}
       >

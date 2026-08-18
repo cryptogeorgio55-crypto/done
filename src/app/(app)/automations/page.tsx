@@ -111,7 +111,7 @@ export default function AutomationsPage() {
           {rules.map((r) => (
             <Card key={r.id} className="flex items-center justify-between gap-4 p-4">
               <div className="flex items-start gap-3">
-                <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-brand"><IconAutopilot className="h-5 w-5" /></span>
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-50 text-brand"><IconAutopilot className="h-5 w-5" /></span>
                 <div>
                   <p className="font-medium text-ink">{r.name} {r.builtin ? null : <Badge tone="gray">custom</Badge>}</p>
                   {r.description ? <p className="text-sm text-ink-soft">{r.description}</p> : null}

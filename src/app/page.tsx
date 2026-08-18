@@ -52,7 +52,7 @@ export default async function LandingPage() {
 
         {/* Product demo mock — watch → understand → handle */}
         <div className="animate-slide-up-lg">
-          <div className="glass rounded-3xl p-4 shadow-[0_40px_100px_-40px_rgba(37,99,235,0.5)]">
+          <div className="glass rounded-3xl p-4 shadow-[0_40px_100px_-40px_rgba(0,147,146,0.5)]">
             <div className="rounded-2xl bg-white p-5">
               <div className="flex items-center justify-between">
                 <p className="eyebrow">Live</p>
@@ -143,11 +143,11 @@ export default async function LandingPage() {
           {[
             ["1", "Tell DONE about your business", "A short onboarding builds your Business Brain."],
             ["2", "DONE learns your brand", "Products, tone, customers and goals — remembered."],
-            ["3", "Press I'M LAZY or choose", "Pick what you need, or let DONE decide."],
-            ["4", "DONE creates the work", "Campaigns, posts, replies and plans — ready to use."],
+            ["3", "DONE surfaces your Next Move", "It tells you what matters most, right now."],
+            ["4", "Execute — DONE does the work", "Replies, follow-ups, briefs and campaigns — ready to use."],
           ].map(([n, title, body]) => (
             <div key={n} className="card card-hover p-6">
-              <div className="grid h-9 w-9 place-items-center rounded-lg bg-blue-50 text-sm font-semibold text-brand">{n}</div>
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-brand-50 text-sm font-semibold text-brand">{n}</div>
               <h3 className="mt-4 font-semibold">{title}</h3>
               <p className="mt-1.5 text-sm text-ink-soft">{body}</p>
             </div>

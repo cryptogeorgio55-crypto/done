@@ -1,6 +1,9 @@
 // Shared vocabulary for the autonomy system.
 
-export type AutonomyLevel = "assist" | "prepare" | "autopilot" | "custom";
+// "shadow" observes and recommends but NEVER takes an external action — the
+// trust-building entry level. "assist"/"prepare" queue actions for approval;
+// "autopilot" executes approved categories automatically.
+export type AutonomyLevel = "shadow" | "assist" | "prepare" | "autopilot" | "custom";
 export type ActionRisk = "low" | "medium" | "high";
 /** What the policy engine decides for a proposed action. */
 export type PolicyDecision = "auto" | "approval" | "never" | "ignore";

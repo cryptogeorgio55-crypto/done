@@ -31,6 +31,18 @@ export const config = {
   },
   ai: {
     forcedProvider: process.env.AI_PROVIDER || "",
+    timeoutMs: Number(process.env.AI_TIMEOUT_MS || 45_000),
+    maxRetries: Number(process.env.AI_MAX_RETRIES || 1),
+    // DeepSeek is the production provider. DONE owns this account — customers
+    // never supply their own key. OpenAI-compatible API; two real models today:
+    // deepseek-chat (V3, fast+primary) and deepseek-reasoner (R1, reasoning).
+    deepseek: {
+      apiKey: process.env.DEEPSEEK_API_KEY || "",
+      baseUrl: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
+      fastModel: process.env.DEEPSEEK_FAST_MODEL || "deepseek-chat",
+      primaryModel: process.env.DEEPSEEK_PRIMARY_MODEL || "deepseek-chat",
+      reasoningModel: process.env.DEEPSEEK_REASONING_MODEL || "deepseek-reasoner",
+    },
     anthropic: {
       apiKey: process.env.ANTHROPIC_API_KEY || "",
       model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6",
@@ -107,12 +119,22 @@ export function configStatus(): SubsystemStatus[] {
   ];
 }
 
-/** Which AI provider will actually be used, given current configuration. */
-export function resolveAiProvider(): "anthropic" | "openai" | "ollama" | "offline" {
+export type AiProvider = "deepseek" | "anthropic" | "openai" | "ollama" | "offline";
+
+/**
+ * Which AI provider will actually be used, given current configuration.
+ * DeepSeek is the production default and is preferred whenever its key is set.
+ * The others remain as portable fallbacks so DONE is never locked to one vendor.
+ */
+export function resolveAiProvider(): AiProvider {
   const forced = config.ai.forcedProvider;
-  if (forced === "anthropic" || forced === "openai" || forced === "ollama" || forced === "offline") {
+  if (
+    forced === "deepseek" || forced === "anthropic" || forced === "openai" ||
+    forced === "ollama" || forced === "offline"
+  ) {
     return forced;
   }
+  if (config.ai.deepseek.apiKey) return "deepseek";
   if (config.ai.anthropic.apiKey) return "anthropic";
   if (config.ai.openai.apiKey) return "openai";
   if (config.ai.ollama.baseUrl) return "ollama";

@@ -135,7 +135,7 @@ export function LiveActivity({ initial }: { initial?: ActivityItem[] }) {
             ) : v.badge === "review" ? (
               <Link
                 href={v.href!}
-                className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-brand hover:bg-blue-100"
+                className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand hover:bg-brand-100"
               >
                 {v.label} <IconArrow className="h-3 w-3" />
               </Link>

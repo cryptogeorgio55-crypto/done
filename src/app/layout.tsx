@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DONE — Your business, DONE.",
+  title: "DONE — an intelligent business operating system.",
   description:
-    "DONE is an AI business assistant for small businesses. Tell it about your business once, then press I'M LAZY and it creates your content, offers, replies and follow-ups.",
+    "DONE watches what's happening across your business, understands what matters, and tells you your Next Move — then does the work. Connect your inbox, calendar and leads and it takes it from there.",
   metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
 };
 

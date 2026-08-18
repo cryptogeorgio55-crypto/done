@@ -20,7 +20,8 @@ interface Action {
 }
 
 const NAV: Action[] = [
-  { id: "lazy", label: "Run I'M LAZY", hint: "Let DONE decide & create", icon: <IconSparkle className="h-4 w-4" />, href: "/dashboard?lazy=1", keywords: "auto magic decide handle everything", group: "do" },
+  { id: "next-move", label: "What matters now?", hint: "Next Move", icon: <IconSparkle className="h-4 w-4" />, href: "/dashboard", keywords: "next move recommendation what should i do priority", group: "do" },
+  { id: "decision-room", label: "Bring a decision", hint: "Decision Room", icon: <IconBrain className="h-4 w-4" />, href: "/decision-room", keywords: "decide discount should i strategy analyze decision room", group: "do" },
   { id: "reply", label: "Reply to a customer", icon: <IconReplies className="h-4 w-4" />, href: "/replies", keywords: "message answer respond dm", group: "do" },
   { id: "content", label: "Create content", hint: "Post, reel, story", icon: <IconContent className="h-4 w-4" />, href: "/content", keywords: "instagram post caption reel story create", group: "do" },
   { id: "campaign", label: "Get customers", hint: "Build a campaign", icon: <IconCustomers className="h-4 w-4" />, href: "/campaigns", keywords: "campaign promotion offer ad acquire", group: "do" },
@@ -149,7 +150,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                     onClick={() => run(a)}
                     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${i === active ? "bg-surface" : "hover:bg-surface"}`}
                   >
-                    <span className={`grid h-8 w-8 place-items-center rounded-lg ${a.group === "suggested" ? "bg-blue-50 text-brand" : i === active ? "bg-white text-brand shadow-sm" : "text-ink-soft"}`}>
+                    <span className={`grid h-8 w-8 place-items-center rounded-lg ${a.group === "suggested" ? "bg-brand-50 text-brand" : i === active ? "bg-white text-brand shadow-sm" : "text-ink-soft"}`}>
                       {a.icon}
                     </span>
                     <span className="min-w-0 flex-1">

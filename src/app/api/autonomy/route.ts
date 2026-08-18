@@ -12,7 +12,7 @@ export const GET = handle(async () => {
 
 const decision = z.enum(["auto", "approval", "never", "ignore"]);
 const putSchema = z.object({
-  level: z.enum(["assist", "prepare", "autopilot", "custom"]).optional(),
+  level: z.enum(["shadow", "assist", "prepare", "autopilot", "custom"]).optional(),
   paused: z.boolean().optional(),
   pausedReason: z.string().max(200).nullable().optional(),
   categoryPolicies: z.record(z.string(), decision).optional(),

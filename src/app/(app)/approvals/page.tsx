@@ -81,7 +81,7 @@ export default function ApprovalsPage() {
 
       {/* Batch approval for low-risk items */}
       {lowRisk.length > 1 ? (
-        <div className="card flex flex-wrap items-center justify-between gap-3 border-brand/20 bg-blue-50/40 p-5">
+        <div className="card flex flex-wrap items-center justify-between gap-3 border-brand/20 bg-brand-50/40 p-5">
           <div>
             <p className="font-semibold text-ink">{lowRisk.length} low-risk things are ready.</p>
             <p className="text-sm text-ink-soft">Routine replies and follow-ups DONE is confident about.</p>
@@ -94,7 +94,7 @@ export default function ApprovalsPage() {
 
       {approvals.length === 0 ? (
         <div className="card flex flex-col items-center px-6 py-16 text-center">
-          <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 text-brand">
+          <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand">
             <IconApprovals className="h-6 w-6" />
           </div>
           <h3 className="text-xl font-semibold tracking-tight text-ink">Nothing needs you.</h3>
@@ -137,7 +137,7 @@ export default function ApprovalsPage() {
                   ) : null}
 
                   {a.reason ? (
-                    <div className="rounded-xl bg-blue-50/50 px-4 py-3">
+                    <div className="rounded-xl bg-brand-50/50 px-4 py-3">
                       <p className="text-xs font-semibold text-brand">Why DONE recommends this</p>
                       <p className="mt-0.5 text-sm text-ink-soft">{a.reason}</p>
                     </div>

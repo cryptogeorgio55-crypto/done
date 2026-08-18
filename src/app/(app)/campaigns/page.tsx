@@ -37,7 +37,7 @@ export default async function CampaignsPage() {
         <EmptyState
           icon={<IconCustomers className="h-6 w-6" />}
           title="No campaigns yet."
-          body="Want me to build the first one? Describe a goal above, or press I'M LAZY on Today."
+          body="Want me to build the first one? Describe a goal above, or execute a reactivation Next Move from Today."
         />
       ) : (
         <div className="space-y-5">
@@ -46,13 +46,13 @@ export default async function CampaignsPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold tracking-tight">{c.title}</h2>
                 <div className="flex items-center gap-2">
-                  {c.source === "lazy" ? <Badge tone="brand">I&apos;M LAZY</Badge> : null}
+                  {c.source === "lazy" ? <Badge tone="brand">Auto</Badge> : null}
                   <StatusChip status={c.status} />
                 </div>
               </div>
               {c.objective ? <p className="mt-1 text-sm text-ink-soft">{c.objective}</p> : null}
               {c.offer ? (
-                <p className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-brand">Offer: {c.offer}</p>
+                <p className="mt-2 rounded-lg bg-brand-50 px-3 py-2 text-sm text-brand">Offer: {c.offer}</p>
               ) : null}
 
               {/* Storyboard — the campaign flow at a glance */}

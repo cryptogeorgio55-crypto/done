@@ -15,7 +15,7 @@ const sizes: Record<ButtonSize, string> = {
 
 const variants: Record<ButtonVariant, string> = {
   primary:
-    "text-white bg-gradient-to-b from-brand to-brand-600 shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_8px_20px_-10px_rgba(37,99,235,0.7)] hover:from-brand hover:to-brand-700 hover:shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_12px_26px_-10px_rgba(37,99,235,0.8)]",
+    "text-white bg-gradient-to-b from-brand to-brand-600 shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_8px_20px_-10px_rgba(0,147,146,0.7)] hover:from-brand hover:to-brand-700 hover:shadow-[0_1px_0_rgba(255,255,255,0.2)_inset,0_12px_26px_-10px_rgba(0,147,146,0.8)]",
   secondary: "bg-white text-ink border border-line hover:border-line-strong hover:bg-surface",
   ghost: "text-ink-soft hover:bg-surface hover:text-ink",
   destructive: "bg-red-600 text-white hover:bg-red-700",
@@ -132,7 +132,7 @@ export function Alert({ kind = "error", children }: { kind?: "error" | "info"; c
   const styles =
     kind === "error"
       ? "bg-red-50 text-red-700 border-red-100"
-      : "bg-blue-50 text-brand border-blue-100";
+      : "bg-brand-50 text-brand border-brand-100";
   return (
     <div role="alert" className={`rounded-xl border px-3.5 py-2.5 text-sm ${styles}`}>
       {children}
@@ -148,7 +148,7 @@ export function Badge({
   tone?: "brand" | "amber" | "gray" | "green";
 }) {
   const tones: Record<string, string> = {
-    brand: "bg-blue-50 text-brand",
+    brand: "bg-brand-50 text-brand",
     amber: "bg-amber-50 text-amber-700",
     gray: "bg-slate-100 text-slate-600",
     green: "bg-emerald-50 text-emerald-700",
@@ -207,7 +207,7 @@ export function EmptyState({
   return (
     <div className="card flex flex-col items-center px-6 py-14 text-center">
       {icon ? (
-        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-blue-50 to-cyan-50 text-brand">
+        <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand">
           {icon}
         </div>
       ) : null}

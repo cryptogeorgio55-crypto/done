@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function BoltMark({ className = "h-8 w-8" }: { className?: string }) {
   return (
-    <span className={`grid place-items-center rounded-xl bg-gradient-to-br from-brand to-cyan text-white shadow-[0_6px_16px_-6px_rgba(37,99,235,0.7)] ${className}`}>
+    <span className={`grid place-items-center rounded-xl bg-gradient-to-br from-brand to-cyan text-white shadow-[0_6px_16px_-6px_rgba(0,147,146,0.7)] ${className}`}>
       <BoltIcon className="h-4 w-4" />
     </span>
   );

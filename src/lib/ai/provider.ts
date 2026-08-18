@@ -10,22 +10,77 @@ export interface LlmResult {
   tokensOut?: number;
 }
 
-const TIMEOUT_MS = 45_000;
+/**
+ * Model routing tiers. The rest of the app asks for a capability level, not a
+ * model name — so DeepSeek (or any future provider) can map these however it
+ * likes without touching call sites.
+ *   fast      → cheap/quick: classification, extraction, summaries, routing
+ *   primary   → customer-facing replies, marketing, follow-ups, content
+ *   reasoning → I'M LAZY, multi-step DONE Runs, planning, cross-app decisions
+ */
+export type AiTier = "fast" | "primary" | "reasoning";
 
-async function withTimeout<T>(p: Promise<T>): Promise<T> {
+/** Run `fn` with an abort signal that fires after the configured timeout. */
+async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), config.ai.timeoutMs);
   try {
-    return await p;
+    return await fn(controller.signal);
   } finally {
     clearTimeout(timer);
   }
 }
 
+function deepseekModel(tier: AiTier): string {
+  const d = config.ai.deepseek;
+  return tier === "reasoning" ? d.reasoningModel : tier === "fast" ? d.fastModel : d.primaryModel;
+}
+
+/**
+ * DeepSeek — the production provider. OpenAI-compatible chat completions.
+ * The reasoning model (deepseek-reasoner / R1) does not support JSON mode, so
+ * we only request response_format for the chat model and rely on extractJson
+ * for the reasoner (the system prompt already mandates a JSON-only reply).
+ */
+async function callDeepSeek(system: string, prompt: string, tier: AiTier): Promise<LlmResult> {
+  const model = deepseekModel(tier);
+  const supportsJsonMode = model !== config.ai.deepseek.reasoningModel;
+  const res = await withTimeout((signal) =>
+    fetch(`${config.ai.deepseek.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      signal,
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${config.ai.deepseek.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        ...(supportsJsonMode ? { response_format: { type: "json_object" } } : {}),
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
+      }),
+    })
+  );
+  if (!res.ok) {
+    throw new AppError("ai_provider_error", `DeepSeek error (${res.status}).`, 502);
+  }
+  const json = await res.json();
+  return {
+    text: json.choices?.[0]?.message?.content ?? "",
+    provider: "deepseek",
+    model,
+    tokensIn: json.usage?.prompt_tokens,
+    tokensOut: json.usage?.completion_tokens,
+  };
+}
+
 async function callAnthropic(system: string, prompt: string): Promise<LlmResult> {
-  const res = await withTimeout(
+  const res = await withTimeout((signal) =>
     fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal,
       headers: {
         "content-type": "application/json",
         "x-api-key": config.ai.anthropic.apiKey,
@@ -54,9 +109,10 @@ async function callAnthropic(system: string, prompt: string): Promise<LlmResult>
 }
 
 async function callOpenAI(system: string, prompt: string): Promise<LlmResult> {
-  const res = await withTimeout(
+  const res = await withTimeout((signal) =>
     fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
+      signal,
       headers: {
         "content-type": "application/json",
         authorization: `Bearer ${config.ai.openai.apiKey}`,
@@ -85,9 +141,10 @@ async function callOpenAI(system: string, prompt: string): Promise<LlmResult> {
 }
 
 async function callOllama(system: string, prompt: string): Promise<LlmResult> {
-  const res = await withTimeout(
+  const res = await withTimeout((signal) =>
     fetch(`${config.ai.ollama.baseUrl.replace(/\/$/, "")}/api/chat`, {
       method: "POST",
+      signal,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         model: config.ai.ollama.model,
@@ -111,8 +168,10 @@ async function callOllama(system: string, prompt: string): Promise<LlmResult> {
   };
 }
 
-function callProvider(provider: string, system: string, prompt: string): Promise<LlmResult> {
+function callProvider(provider: string, system: string, prompt: string, tier: AiTier): Promise<LlmResult> {
   switch (provider) {
+    case "deepseek":
+      return callDeepSeek(system, prompt, tier);
     case "anthropic":
       return callAnthropic(system, prompt);
     case "openai":
@@ -166,8 +225,11 @@ export async function generateJSON<S extends z.ZodTypeAny>(opts: {
   prompt: string;
   schema: S;
   offline: () => z.infer<S>;
+  /** Capability tier → model routing. Defaults to "primary". */
+  tier?: AiTier;
 }): Promise<GenerateJsonResult<z.infer<S>>> {
   const provider = resolveAiProvider();
+  const tier: AiTier = opts.tier ?? "primary";
 
   if (provider === "offline") {
     const data = opts.schema.parse(opts.offline()) as z.infer<S>;
@@ -179,14 +241,15 @@ export async function generateJSON<S extends z.ZodTypeAny>(opts: {
     "\n\nRespond with ONLY a single valid JSON object that conforms to the requested structure. No markdown, no code fences, no commentary.";
 
   let lastErr: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const attempts = Math.max(1, config.ai.maxRetries + 1);
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       const nudge =
         attempt === 0
           ? opts.prompt
           : opts.prompt +
             "\n\nYour previous response was not valid JSON matching the schema. Return ONLY the corrected JSON object.";
-      const result = await callProvider(provider, jsonSystem, nudge);
+      const result = await callProvider(provider, jsonSystem, nudge, tier);
       const parsed = extractJson(result.text);
       const data = opts.schema.parse(parsed);
       return {

@@ -87,7 +87,7 @@ export default function HowDoneWorksPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {LEVELS.map((l) => (
             <button key={l.key} onClick={() => save({ level: l.key })} disabled={saving}
-              className={`rounded-2xl border p-4 text-left transition-all ${config.level === l.key ? "border-brand bg-blue-50/60 ring-2 ring-brand/20" : "border-line bg-white hover:border-line-strong"}`}>
+              className={`rounded-2xl border p-4 text-left transition-all ${config.level === l.key ? "border-brand bg-brand-50/60 ring-2 ring-brand/20" : "border-line bg-white hover:border-line-strong"}`}>
               <div className="flex items-center justify-between"><p className="font-semibold text-ink">{l.name}</p>{config.level === l.key ? <IconCheck className="h-5 w-5 text-brand" /> : null}</div>
               <p className="mt-1 text-sm text-ink-soft">{l.desc}</p>
             </button>

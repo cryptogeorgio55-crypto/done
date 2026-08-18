@@ -17,6 +17,7 @@ const PRIMARY = [
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
   { href: "/approvals", label: "Approvals", Icon: IconApprovals },
   { href: "/dashboard", label: "Today", Icon: IconToday },
+  { href: "/decision-room", label: "Decision Room", Icon: IconBrain },
   { href: "/campaigns", label: "Get Customers", Icon: IconCustomers },
   { href: "/content", label: "Content", Icon: IconContent },
   { href: "/replies", label: "Replies", Icon: IconReplies },
@@ -233,7 +234,7 @@ function NavLink({
       href={href}
       title={collapsed ? label : undefined}
       className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
-        active ? "bg-blue-50/80 text-brand" : "text-ink-soft hover:bg-surface hover:text-ink"
+        active ? "bg-brand-50/80 text-brand" : "text-ink-soft hover:bg-surface hover:text-ink"
       } ${collapsed ? "justify-center px-0" : ""}`}
     >
       {active ? <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-brand" /> : null}

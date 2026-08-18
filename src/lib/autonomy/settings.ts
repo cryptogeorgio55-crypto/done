@@ -22,6 +22,15 @@ const DEFAULT_HOURS: BusinessHours = {
  */
 function levelDefaults(level: AutonomyLevel): Partial<Record<ActionCategory, PolicyDecision>> {
   switch (level) {
+    case "shadow":
+      // Observe-only. Nothing external ever fires; internal bookkeeping is fine.
+      // DONE still reads, understands and recommends (Next Move) — it just can't act.
+      return {
+        sales_reply: "never", customer_reply: "never", complaint: "never",
+        schedule_meeting: "never", send_quotation: "never", send_followup: "never",
+        financial: "never", bulk_communication: "never", destructive: "never",
+        create_lead: "auto", update_lead: "auto", internal_task: "auto",
+      };
     case "assist":
       // Assist never takes external action; everything external needs approval.
       return {

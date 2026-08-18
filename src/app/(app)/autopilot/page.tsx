@@ -19,20 +19,23 @@ interface AutonomyConfig { level: string; paused: boolean }
 interface Integration { key: string; name: string; account: { status: string } | null }
 interface SweepItem { title: string; status: string; detail?: string }
 
-type Level = "assist" | "prepare" | "autopilot";
+type Level = "shadow" | "assist" | "prepare" | "autopilot";
 const LEVELS: { key: Level; label: string; blurb: string }[] = [
+  { key: "shadow", label: "Shadow", blurb: "I observe and recommend. I never act externally." },
   { key: "assist", label: "Assist", blurb: "I recommend. You decide everything." },
   { key: "prepare", label: "Prepare", blurb: "I prepare everything. You send." },
   { key: "autopilot", label: "Autopilot", blurb: "I handle approved tasks myself." },
 ];
 
 const HANDLING: Record<string, string[]> = {
+  shadow: [],
   assist: [],
   prepare: [],
   autopilot: ["New sales inquiries", "Routine follow-ups", "Meeting preparation"],
   custom: ["Based on your rules"],
 };
 const APPROVAL: Record<string, string[]> = {
+  shadow: ["Nothing — DONE only watches & learns"],
   assist: ["Everything — DONE only recommends"],
   prepare: ["Everything — DONE prepares, you send"],
   autopilot: ["Complaints", "Quotes & discounts", "Anything financial"],
@@ -120,7 +123,7 @@ export default function AutopilotPage() {
             {paused ? "DONE won't take any external action until you resume." : "DONE is watching your business and handling routine work."}
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button size="lg" loading={running} onClick={runLazy}><IconSparkle className="h-5 w-5" /> I&apos;M LAZY</Button>
+            <Button size="lg" loading={running} onClick={runLazy}><IconSparkle className="h-5 w-5" /> Check everything now</Button>
             <Button variant="secondary" size="lg" onClick={togglePause} disabled={pausing}>
               <IconPause className="h-4 w-4" /> {paused ? "Resume" : "Pause"} autopilot
             </Button>
@@ -158,7 +161,7 @@ export default function AutopilotPage() {
       <section className="card p-6">
         <h2 className="text-lg font-semibold text-ink">How much should DONE handle?</h2>
         <p className="mt-1 text-sm text-ink-soft">You&apos;re in control. Change this anytime.</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {LEVELS.map((l) => {
             const selected = config.level === l.key;
             return (
@@ -166,7 +169,7 @@ export default function AutopilotPage() {
                 key={l.key}
                 onClick={() => setLevel(l.key)}
                 disabled={savingLevel}
-                className={`rounded-2xl border p-4 text-left transition-all ${selected ? "border-brand bg-blue-50/50 ring-2 ring-brand/15" : "border-line hover:border-line-strong hover:bg-surface"}`}
+                className={`rounded-2xl border p-4 text-left transition-all ${selected ? "border-brand bg-surface-2 ring-2 ring-brand/15" : "border-line hover:border-line-strong hover:bg-surface"}`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-ink">{l.label}</span>
