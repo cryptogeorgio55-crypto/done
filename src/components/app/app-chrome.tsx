@@ -10,10 +10,12 @@ import {
   IconToday, IconCustomers, IconContent, IconReplies, IconLeads, IconBrain,
   IconAnalytics, IconSettings, IconSearch, IconSparkle, IconLogout,
   IconChevronsLeft, IconX, IconAutopilot, IconInbox, IconApprovals, IconPlug,
+  IconActivity,
 } from "@/components/icons";
 
 const PRIMARY = [
   { href: "/autopilot", label: "Autopilot", Icon: IconAutopilot },
+  { href: "/mission-control", label: "Mission Control", Icon: IconActivity },
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
   { href: "/approvals", label: "Approvals", Icon: IconApprovals },
   { href: "/dashboard", label: "Today", Icon: IconToday },

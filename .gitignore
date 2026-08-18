@@ -37,3 +37,6 @@ yarn-error.log*
 
 # Generated at prod build time (see scripts/make-prod-schema.mjs)
 prisma/schema.prod.prisma
+
+# Build info
+tsconfig.tsbuildinfo

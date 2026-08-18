@@ -10,6 +10,7 @@ import {
   intentToActionCategory,
 } from "./understand";
 import { draftReply } from "./reply";
+import { recordCommitments } from "@/lib/commitments/tracker";
 
 // THE DONE LOOP.
 //
@@ -217,6 +218,26 @@ async function handleEmail(ctx: WorkspaceContext, runId: string, rawPayload: unk
       importance: classification.urgency === "high" ? 3 : 1,
     },
   });
+
+  // Detect promises in both directions: what the customer said they'd do
+  // ("I'll confirm Friday") and what we committed to in our reply. Best-effort
+  // and deterministic — it never blocks or fails the loop.
+  try {
+    const party = classification.personName || email.fromName || email.from;
+    await recordCommitments(ctx, {
+      text: email.body || email.subject || "",
+      authorIsUs: false, party,
+      subjectType: leadId ? "lead" : "person", subjectId: leadId ?? email.from,
+      sourceRef: `gmail:${email.messageId}`,
+    });
+    await recordCommitments(ctx, {
+      text: body, authorIsUs: true, party,
+      subjectType: leadId ? "lead" : "person", subjectId: leadId ?? email.from,
+      sourceRef: `gmail:${email.messageId}`,
+    });
+  } catch {
+    /* commitment detection is best-effort */
+  }
 
   // REPORT ------------------------------------------------------------------
   const status = approvals > 0 ? "needs_approval" : "completed";
