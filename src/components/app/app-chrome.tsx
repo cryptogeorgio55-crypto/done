@@ -10,10 +10,11 @@ import {
   IconToday, IconCustomers, IconContent, IconReplies, IconLeads, IconBrain,
   IconAnalytics, IconSettings, IconSearch, IconSparkle, IconLogout,
   IconChevronsLeft, IconX, IconAutopilot, IconInbox, IconApprovals, IconPlug,
-  IconActivity,
+  IconActivity, IconBolt,
 } from "@/components/icons";
 
 const PRIMARY = [
+  { href: "/chief-of-staff", label: "Chief of Staff", Icon: IconToday },
   { href: "/autopilot", label: "Autopilot", Icon: IconAutopilot },
   { href: "/mission-control", label: "Mission Control", Icon: IconActivity },
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
@@ -27,6 +28,7 @@ const PRIMARY = [
   { href: "/brain", label: "Business Brain", Icon: IconBrain },
 ];
 const SECONDARY = [
+  { href: "/opportunities", label: "Opportunities", Icon: IconBolt },
   { href: "/connections", label: "Connections", Icon: IconPlug },
   { href: "/automations", label: "Automations", Icon: IconAutopilot },
   { href: "/analytics", label: "Analytics", Icon: IconAnalytics },

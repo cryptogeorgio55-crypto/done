@@ -23,10 +23,20 @@ function salesProposal(leadId: string): AgentProposal {
   };
 }
 
+/** A real lead with an email so the send step can produce a genuine Approval. */
+async function makeLead(workspaceId: string) {
+  const lead = await import("@/lib/db").then(({ db }) =>
+    db.lead.create({
+      data: { workspaceId, name: "Sarah Haddad", email: "sarah@example.com", stage: "interested", lastContactAt: new Date() },
+    })
+  );
+  return lead.id;
+}
+
 describe("Mission engine (durable, honest)", () => {
   it("creates a mission with a grounded step plan", async () => {
     const ctx = await makeWorkspace("Mission Create Co");
-    const m = await createMissionFromProposal(ctx, salesProposal("lead-1"));
+    const m = await createMissionFromProposal(ctx, salesProposal(await makeLead(ctx.workspace.id)));
     expect(m.kind).toBe("sales_close");
     expect(m.steps.length).toBeGreaterThan(0);
     expect(m.steps[0].status).toBe("pending");
@@ -34,12 +44,13 @@ describe("Mission engine (durable, honest)", () => {
     expect(m.steps.some((s) => s.kind === "execute" && s.requiresApproval)).toBe(true);
   });
 
-  it("advances internal steps but pauses at the external-action boundary", async () => {
+  it("advances internal steps but pauses at the external-action boundary (real Approval)", async () => {
     const ctx = await makeWorkspace("Mission Advance Co");
-    const m = await createMissionFromProposal(ctx, salesProposal("lead-2"));
+    const leadId = await makeLead(ctx.workspace.id);
+    const m = await createMissionFromProposal(ctx, salesProposal(leadId));
 
     let current = m;
-    // Advance repeatedly; it must never silently execute the external step.
+    // Advance repeatedly; it must never silently send — it pauses for approval.
     for (let i = 0; i < 10; i++) {
       const next = await advanceMission(ctx, current.id);
       if (!next) break;
@@ -52,11 +63,15 @@ describe("Mission engine (durable, honest)", () => {
     expect(paused?.kind).toBe("execute");
     // Internal steps before it are done.
     expect(current.steps.filter((s) => s.status === "done").length).toBeGreaterThan(0);
+    // A REAL Approval was created by the policy engine (not a faked send).
+    const { db } = await import("@/lib/db");
+    const approvals = await db.approval.count({ where: { workspaceId: ctx.workspace.id, status: "pending" } });
+    expect(approvals).toBe(1);
   });
 
   it("survives a reload: a persisted mission is resumable by id", async () => {
     const ctx = await makeWorkspace("Mission Durable Co");
-    const m = await createMissionFromProposal(ctx, salesProposal("lead-3"));
+    const m = await createMissionFromProposal(ctx, salesProposal(await makeLead(ctx.workspace.id)));
     await advanceMission(ctx, m.id);
 
     // Simulate a fresh process: re-read purely from the database.

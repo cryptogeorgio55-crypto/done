@@ -121,6 +121,7 @@ model Workspace {
   missionSteps MissionStep[]
   commitments  Commitment[]
   agentRuns    AgentRun[]
+  snapshots    Snapshot[]
 
   @@index([ownerId])
   @@index([slug])
@@ -1028,5 +1029,21 @@ model AgentRun {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, agent])
+  @@index([workspaceId, createdAt])
+}
+
+/**
+ * A point-in-time metric snapshot of the business, for "compare Monday vs
+ * Friday" diffs. Small, cheap, deterministic — captured on a schedule/manually.
+ */
+model Snapshot {
+  id          String   @id @default(uuid())
+  workspaceId String
+  label       String? // optional human label ("Monday")
+  metrics     Json // flat map of metric -> number (hotLeads, staleLeads, ...)
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, createdAt])
 }
